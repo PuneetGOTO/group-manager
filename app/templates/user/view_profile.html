@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ user.username }} 的个人资料 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-4">
+            <!-- 用户资料卡 -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename=user.avatar) }}" class="rounded-circle img-fluid mb-3" style="width: 150px; height: 150px; object-fit: cover;" alt="{{ user.username }}">
+                    <h3>{{ user.username }}</h3>
+                    {% if user.bio %}
+                    <p class="text-muted">{{ user.bio }}</p>
+                    {% else %}
+                    <p class="text-muted">这个用户还没有添加个人简介</p>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-center mt-3">
+                        {% if current_user.is_authenticated and current_user.id != user.id %}
+                        <button class="btn btn-primary me-2">
+                            <i class="fas fa-user-plus"></i> 关注
+                        </button>
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-envelope"></i> 发消息
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row text-center">
+                        <div class="col">
+                            <h5>{{ user.groups|count }}</h5>
+                            <small class="text-muted">群组</small>
+                        </div>
+                        <div class="col">
+                            <h5>{{ public_groups|count }}</h5>
+                            <small class="text-muted">创建</small>
+                        </div>
+                        <div class="col">
+                            <h5>0</h5>
+                            <small class="text-muted">关注者</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 用户基本信息 -->
+            <div class="card mb-4">
+                <div class="card-header">基本信息</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">加入时间</small>
+                        <p>{{ user.created_at.strftime('%Y-%m-%d') }}</p>
+                    </div>
+                    {% if user.location %}
+                    <div class="mb-3">
+                        <small class="text-muted">所在地</small>
+                        <p>{{ user.location }}</p>
+                    </div>
+                    {% endif %}
+                    {% if user.discord_username %}
+                    <div class="mb-3">
+                        <small class="text-muted">Discord</small>
+                        <p>{{ user.discord_username }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <!-- 共同群组 -->
+            {% if common_groups %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">共同的群组</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for group in common_groups %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ url_for('static', filename=group.avatar) }}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;" alt="{{ group.name }}">
+                                <div>
+                                    <h6 class="mb-0"><a href="{{ url_for('groups.view', group_id=group.id) }}">{{ group.name }}</a></h6>
+                                    <small class="text-muted">{{ group.get_members_count() }} 成员</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 公开群组 -->
+            {% if public_groups %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">创建的公开群组</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for group in public_groups %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ url_for('static', filename=group.avatar) }}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;" alt="{{ group.name }}">
+                                <div>
+                                    <h6 class="mb-0"><a href="{{ url_for('groups.view', group_id=group.id) }}">{{ group.name }}</a></h6>
+                                    <small class="text-muted">{{ group.get_members_count() }} 成员</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 最近活动 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">最近活动</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <h5>暂无活动</h5>
+                        <p class="text-muted">该用户最近没有公开活动</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
