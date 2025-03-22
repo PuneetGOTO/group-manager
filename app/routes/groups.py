@@ -376,6 +376,13 @@ def members(group_id):
         group_members, User.id == group_members.c.user_id
     ).filter(group_members.c.group_id == group_id).all()
     
+    # 提取User对象和角色信息
+    members = []
+    members_roles = {}
+    for user, role in members_query:
+        members.append(user)
+        members_roles[user.id] = role
+    
     # 检查当前用户是否为管理员
     is_admin = False
     if current_user.is_authenticated and group in current_user.groups:
@@ -384,7 +391,8 @@ def members(group_id):
     
     return render_template('groups/members.html', 
                           group=group, 
-                          members=members_query,
+                          members=members,
+                          members_roles=members_roles,
                           is_admin=is_admin)
 
 @groups_bp.route('/<int:group_id>/invite')

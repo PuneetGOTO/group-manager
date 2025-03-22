@@ -92,13 +92,13 @@
                         <td>
                             {% if member.id == group.owner_id %}
                             <span class="badge bg-danger">群主</span>
-                            {% elif member in group.admins %}
+                            {% elif members_roles[member.id] == 'admin' %}
                             <span class="badge bg-warning text-dark">管理员</span>
                             {% else %}
                             <span class="badge bg-secondary">成员</span>
                             {% endif %}
                         </td>
-                        <td>{{ member.get_join_date(group.id).strftime('%Y-%m-%d') }}</td>
+                        <td>{{ member.get_join_date(group.id).strftime('%Y-%m-%d') if member.get_join_date(group.id) else '未知' }}</td>
                         {% if is_admin %}
                         <td>
                             <div class="btn-group">
@@ -107,14 +107,14 @@
                                 </button>
                                 <ul class="dropdown-menu">
                                     {% if current_user.id == group.owner_id and member.id != group.owner_id %}
-                                        {% if member in group.admins %}
+                                        {% if members_roles[member.id] == 'admin' %}
                                         <li><a class="dropdown-item" href="{{ url_for('groups.remove_admin', group_id=group.id, user_id=member.id) }}">取消管理员</a></li>
                                         {% else %}
                                         <li><a class="dropdown-item" href="{{ url_for('groups.make_admin', group_id=group.id, user_id=member.id) }}">设为管理员</a></li>
                                         {% endif %}
                                     {% endif %}
                                     
-                                    {% if (current_user.id == group.owner_id) or (current_user in group.admins and member.id != group.owner_id and member not in group.admins) %}
+                                    {% if (current_user.id == group.owner_id) or (current_user in group.admins and member.id != group.owner_id and members_roles[member.id] != 'admin') %}
                                     <li><a class="dropdown-item text-danger" href="{{ url_for('groups.remove_member', group_id=group.id, user_id=member.id) }}" onclick="return confirm('确定要将此成员移出群组吗？')">移出群组</a></li>
                                     {% endif %}
                                 </ul>
