@@ -79,7 +79,7 @@
                         {% for group in user_groups %}
                         <div class="col">
                             <div class="card h-100">
-                                <div class="card-img-top group-card-img" style="background-image: url({{ url_for('static', filename=group.banner) }});">
+                                <div class="card-img-top group-card-img" style="background-image: url('{{ url_for('static', filename=group.banner) }}');">
                                     <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-sm rounded-circle group-avatar-overlay">
                                 </div>
                                 <div class="card-body">
@@ -99,7 +99,7 @@
                         <h5>您还没有加入任何群组</h5>
                         <p class="text-muted">创建一个群组或加入现有群组开始互动吧！</p>
                         <a href="{{ url_for('groups.create') }}" class="btn btn-primary me-2">创建群组</a>
-                        <a href="{{ url_for('groups.explore') }}" class="btn btn-outline-secondary">发现群组</a>
+                        <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary">发现群组</a>
                     </div>
                     {% endif %}
                 </div>

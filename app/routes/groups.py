@@ -331,6 +331,35 @@ def transfer_ownership(group_id):
     flash(f'群组所有权已转让给 {new_owner.username}', 'success')
     return redirect(url_for('groups.view', group_id=group_id))
 
+@groups_bp.route('/<int:group_id>/delete', methods=['POST'])
+@login_required
+def delete(group_id):
+    """删除群组"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 验证当前用户是否为群主
+    if current_user.id != group.owner_id:
+        flash('只有群主才能删除群组', 'danger')
+        return redirect(url_for('groups.settings', group_id=group_id))
+    
+    # 获取确认信息
+    confirm_name = request.form.get('confirm_name')
+    
+    # 验证确认信息是否正确
+    if confirm_name != group.name:
+        flash('群组名称不匹配，删除操作已取消', 'warning')
+        return redirect(url_for('groups.settings', group_id=group_id))
+    
+    # 获取群组名称用于提示
+    group_name = group.name
+    
+    # 删除群组（关联的帖子、评论、活动等会由SQLAlchemy的cascade自动处理）
+    db.session.delete(group)
+    db.session.commit()
+    
+    flash(f'群组"{group_name}"已永久删除', 'success')
+    return redirect(url_for('groups.index'))
+
 @groups_bp.route('/<int:group_id>/members')
 @login_required
 def members(group_id):
