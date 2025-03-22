@@ -26,36 +26,21 @@ class DiscordClient:
         # 使用配置的权限值
         permissions = DISCORD_BOT_PERMISSIONS if DISCORD_BOT_PERMISSIONS else "826484758"
         
-        # 使用官方的Discord OAuth2 URL格式
-        # 参考: https://discord.com/developers/docs/topics/oauth2
-        if use_login_redirect:
-            # 构建通过登录页面的OAuth流程（类似Dyno的方式）
-            scope = 'identify email guilds bot'
-            # 先创建基本的授权URL
-            auth_url = f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code"
+        # 正确编码scope列表
+        scope = urllib.parse.quote(' '.join(['identify', 'email', 'guilds', 'bot']))
+        
+        # 构建基本授权URL
+        auth_url = f"https://discord.com/api/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code"
+        
+        # 添加重定向URI (确保已URL编码)
+        auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
+        
+        # 添加状态参数
+        if state:
+            auth_url += f"&state={state}"
             
-            # 添加重定向URI和状态参数
-            auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
-            if state:
-                auth_url += f"&state={state}"
-                
-            # 将整个URL编码并通过登录页面重定向
-            encoded_auth_url = urllib.parse.quote(auth_url)
-            full_auth_url = f"https://discord.com/login?redirect_to={encoded_auth_url}"
-            return full_auth_url
-        else:
-            # 使用标准的官方Discord授权URL（推荐方式）
-            scope = 'identify email guilds bot'
-            auth_url = f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code"
-            
-            # 添加重定向URI (需要URL编码)
-            auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
-            
-            # 添加状态参数
-            if state:
-                auth_url += f"&state={state}"
-                
-            return auth_url
+        current_app.logger.info(f"生成的Discord授权URL: {auth_url}")
+        return auth_url
     
     @staticmethod
     def exchange_code(code):
