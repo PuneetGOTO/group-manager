@@ -254,6 +254,74 @@ def create_event(group_id):
     
     return render_template('groups/create_event.html', group=group)
 
+@groups_bp.route('/<int:group_id>/post/<int:post_id>')
+@login_required
+def view_post(group_id, post_id):
+    """查看帖子详情"""
+    group = Group.query.get_or_404(group_id)
+    post = Post.query.get_or_404(post_id)
+    
+    # 验证帖子是否属于该群组
+    if post.group_id != group_id:
+        abort(404)
+    
+    # 非公开群组需要成员才能查看
+    if not group.is_public and group not in current_user.groups:
+        flash('您没有权限查看该群组的帖子', 'warning')
+        return redirect(url_for('groups.index'))
+    
+    # 获取帖子评论
+    comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at).all()
+    
+    # 检查当前用户是否为管理员
+    is_admin = False
+    if current_user.is_authenticated and group in current_user.groups:
+        user_role = current_user.get_role_in_group(group_id)
+        is_admin = (user_role == 'admin' or group.owner_id == current_user.id)
+    
+    return render_template('groups/view_post.html', 
+                          group=group, 
+                          post=post, 
+                          comments=comments,
+                          is_admin=is_admin)
+
+@groups_bp.route('/<int:group_id>/post/<int:post_id>/comment', methods=['POST'])
+@login_required
+def add_comment(group_id, post_id):
+    """添加评论到帖子"""
+    group = Group.query.get_or_404(group_id)
+    post = Post.query.get_or_404(post_id)
+    
+    # 验证帖子是否属于该群组
+    if post.group_id != group_id:
+        abort(404)
+    
+    # 非公开群组需要成员才能评论
+    if not group.is_public and group not in current_user.groups:
+        flash('您没有权限在该群组发表评论', 'warning')
+        return redirect(url_for('groups.index'))
+    
+    content = request.form.get('content')
+    
+    # 验证评论内容
+    if not content:
+        flash('评论内容不能为空', 'danger')
+        return redirect(url_for('groups.view_post', group_id=group_id, post_id=post_id))
+    
+    # 创建新评论
+    new_comment = Comment(
+        content=content,
+        author_id=current_user.id,
+        post_id=post_id
+    )
+    
+    # 保存到数据库
+    db.session.add(new_comment)
+    db.session.commit()
+    
+    flash('评论发表成功', 'success')
+    return redirect(url_for('groups.view_post', group_id=group_id, post_id=post_id))
+
 @groups_bp.route('/<int:group_id>/settings', methods=['GET', 'POST'])
 @login_required
 def settings(group_id):
