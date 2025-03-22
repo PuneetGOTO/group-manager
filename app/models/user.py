@@ -75,6 +75,15 @@ class User(db.Model, UserMixin):
         self.discord_refresh_token = None
         self.discord_token_expires = None
         db.session.commit()
+    
+    def get_join_date(self, group_id):
+        """获取用户加入群组的日期"""
+        stmt = db.select(group_members.c.joined_at).where(
+            (group_members.c.user_id == self.id) & 
+            (group_members.c.group_id == group_id)
+        )
+        result = db.session.execute(stmt).first()
+        return result[0] if result else None
         
     def __repr__(self):
         return f'<User {self.username}>'
