@@ -8,15 +8,17 @@ DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI', 'https://web-production
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 # 机器人权限设置
-# 826484758代表广泛的权限，包括管理服务器、角色、频道等
-DISCORD_BOT_PERMISSIONS = "826484758"
+# 268643382代表用户指定的权限配置
+DISCORD_BOT_PERMISSIONS = "268643382"
 
-# OAuth授权范围 - 使用最基本且稳定的作用域
+# OAuth授权范围 - 使用更全面的作用域配置
 DISCORD_SCOPES = [
-    'identify',                # 获取用户信息
-    'email',                   # 获取用户邮箱
-    'guilds',                  # 获取用户所在的服务器列表
-    'bot'                      # 添加机器人到服务器
+    'email',                    # 获取用户邮箱
+    'identify',                 # 获取用户信息
+    'guilds',                   # 获取用户所在的服务器列表
+    'guilds.channels.read',     # 读取服务器频道信息
+    'bot',                      # 添加机器人到服务器
+    'applications.commands'     # 允许应用程序命令
 ]
 
 # Discord API端点

@@ -24,13 +24,13 @@ class DiscordClient:
             return None
 
         # 使用配置的权限值
-        permissions = DISCORD_BOT_PERMISSIONS if DISCORD_BOT_PERMISSIONS else "826484758"
+        permissions = DISCORD_BOT_PERMISSIONS if DISCORD_BOT_PERMISSIONS else "268643382"
         
-        # 正确编码scope列表
-        scope = urllib.parse.quote(' '.join(['identify', 'email', 'guilds', 'bot']))
+        # 正确编码scope列表，使用配置文件中定义的作用域
+        scope = urllib.parse.quote(' '.join(DISCORD_SCOPES))
         
         # 构建基本授权URL
-        auth_url = f"https://discord.com/api/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code"
+        auth_url = f"https://discord.com/api/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code&integration_type=0"
         
         # 添加重定向URI (确保已URL编码)
         auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
