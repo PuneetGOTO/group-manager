@@ -45,7 +45,7 @@ class Group(db.Model):
         # 使用字符串引用避免循环导入
         admin_members = []
         admins_query = db.session.execute(
-            "SELECT user_id FROM group_members WHERE group_id = :group_id AND role = 'admin'",
+            db.text("SELECT user_id FROM group_members WHERE group_id = :group_id AND role = 'admin'"),
             {"group_id": self.id}
         ).fetchall()
         
