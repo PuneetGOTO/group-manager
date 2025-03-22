@@ -294,6 +294,43 @@ def settings(group_id):
     
     return render_template('groups/settings.html', group=group)
 
+@groups_bp.route('/<int:group_id>/transfer-ownership', methods=['POST'])
+@login_required
+def transfer_ownership(group_id):
+    """转让群组所有权"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 验证当前用户是否为群主
+    if current_user.id != group.owner_id:
+        flash('只有群主才能转让所有权', 'danger')
+        return redirect(url_for('groups.settings', group_id=group_id))
+    
+    # 获取新群主ID
+    new_owner_id = request.form.get('new_owner_id')
+    if not new_owner_id:
+        flash('请选择新的群主', 'warning')
+        return redirect(url_for('groups.settings', group_id=group_id))
+    
+    # 验证新群主是否为群组成员
+    new_owner = User.query.get(new_owner_id)
+    if not new_owner or new_owner not in group.user_members:
+        flash('选择的用户不是该群组的成员', 'danger')
+        return redirect(url_for('groups.settings', group_id=group_id))
+    
+    # 转让所有权
+    group.owner_id = new_owner.id
+    
+    # 确保新群主的角色为admin
+    stmt = db.update(group_members).where(
+        (group_members.c.group_id == group_id) & 
+        (group_members.c.user_id == new_owner.id)
+    ).values(role='admin')
+    db.session.execute(stmt)
+    
+    db.session.commit()
+    flash(f'群组所有权已转让给 {new_owner.username}', 'success')
+    return redirect(url_for('groups.view', group_id=group_id))
+
 @groups_bp.route('/<int:group_id>/members')
 @login_required
 def members(group_id):
