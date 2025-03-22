@@ -19,9 +19,16 @@ class DiscordClient:
         # 确保client_id是字符串格式
         client_id = str(DISCORD_CLIENT_ID) if DISCORD_CLIENT_ID else '1353003948948066395'
         
-        # 构建完整的授权URL，确保包含redirect_uri
-        scope = 'identify email guilds guilds.members.read bot'
-        auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_uri={DISCORD_REDIRECT_URI}&response_type=code&scope={scope}"
+        # 为机器人设置必要的权限
+        # 7272262672 权限包括: 查看频道、管理角色、管理频道、踢出成员、禁言成员等群组管理必要权限
+        permissions = "7272262672"
+        
+        # 构建完整的授权URL
+        scope = 'bot identify email guilds guilds.members.read'
+        auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={permissions}&scope={scope}&response_type=code"
+        
+        # 添加重定向URI和状态参数
+        auth_url += f"&redirect_uri={DISCORD_REDIRECT_URI}"
         
         if state:
             auth_url += f"&state={state}"
