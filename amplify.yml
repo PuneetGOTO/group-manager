@@ -12,3 +12,21 @@ backend:
   cache:
     paths:
       - '/root/.cache/pip/**/*'
+
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "No preBuild commands for Flask application"
+    build:
+      commands:
+        - echo "Flask applications don't require frontend build"
+    postBuild:
+      commands:
+        - echo "postBuild completed"
+  artifacts:
+    baseDirectory: /
+    files:
+      - '**/*'
+  cache:
+    paths: []
