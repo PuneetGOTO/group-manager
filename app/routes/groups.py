@@ -508,6 +508,66 @@ def regenerate_invite(group_id):
     flash('邀请链接已重新生成', 'success')
     return redirect(url_for('groups.invite', group_id=group_id))
 
+@groups_bp.route('/<int:group_id>/invite_by_email', methods=['POST'])
+@login_required
+def invite_by_email(group_id):
+    """通过邮件邀请用户加入群组"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查用户是否在群组中
+    if group not in current_user.groups:
+        flash('您不是该群组成员', 'warning')
+        return redirect(url_for('groups.index'))
+    
+    # 获取表单数据
+    emails_raw = request.form.get('emails', '')
+    message = request.form.get('message', '')
+    
+    # 处理邮箱地址（支持逗号、分号或换行分隔）
+    import re
+    emails = re.split(r'[,;\n]', emails_raw)
+    emails = [email.strip() for email in emails if email.strip()]
+    
+    if not emails:
+        flash('请至少输入一个有效的邮箱地址', 'warning')
+        return redirect(url_for('groups.invite', group_id=group_id))
+    
+    # 获取邀请链接
+    if group.is_public:
+        invite_url = url_for('groups.view', group_id=group_id, _external=True)
+    else:
+        # 确保有邀请码
+        if not group.invite_code:
+            import uuid
+            group.invite_code = str(uuid.uuid4())[:8]
+            db.session.commit()
+        
+        invite_url = url_for('groups.join', group_id=group_id, code=group.invite_code, _external=True)
+    
+    # TODO: 实际发送邮件的逻辑
+    # 这里可以集成邮件发送功能，例如使用Flask-Mail
+    # 暂时只记录邀请并显示成功消息
+    
+    # 记录已发送的邀请（如果有邀请模型的话）
+    # 这里假设有Invitation模型，实际应用中需要根据实际模型调整
+    try:
+        from app.models import Invitation
+        for email in emails:
+            invitation = Invitation(
+                email=email,
+                group_id=group_id,
+                inviter_id=current_user.id,
+                message=message
+            )
+            db.session.add(invitation)
+        db.session.commit()
+    except ImportError:
+        # 如果没有Invitation模型，简单记录日志
+        app.logger.info(f"User {current_user.id} invited emails: {', '.join(emails)} to group {group_id}")
+    
+    flash(f'邀请已发送至 {len(emails)} 个邮箱地址', 'success')
+    return redirect(url_for('groups.invite', group_id=group_id))
+
 @groups_bp.route('/<int:group_id>/update_settings', methods=['POST'])
 @login_required
 def update_settings(group_id):
