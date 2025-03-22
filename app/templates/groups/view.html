@@ -5,7 +5,11 @@
 {% block content %}
 <!-- 群组头部信息 -->
 <div class="card mb-4">
-    <div class="group-banner" style="background-image: url('{{ url_for('static', filename=group.banner) }}');">
+    <div class="group-banner" style="
+        background-image: url('{{ url_for('static', filename=group.banner) }}');
+        background-size: cover;
+        background-position: center;
+    ">
         <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-lg group-avatar" alt="{{ group.name }}">
     </div>
     <div class="card-body pt-5">

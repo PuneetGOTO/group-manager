@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}关于我们{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">关于群组管理系统</h1>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">我们的使命</h5>
+                    <p class="card-text">
+                        群组管理系统旨在为Discord社区提供一个简单高效的管理平台。我们的目标是帮助社区组织者更好地管理他们的Discord群组，安排活动，并与成员保持联系。
+                    </p>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">系统特点</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">直观的群组创建和管理界面</li>
+                        <li class="list-group-item">活动安排和提醒功能</li>
+                        <li class="list-group-item">成员管理和权限控制</li>
+                        <li class="list-group-item">与Discord的无缝集成</li>
+                        <li class="list-group-item">支持DeepSeek AI增强功能</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">联系我们</h5>
+                    <p class="card-text">
+                        如有任何问题、建议或反馈，请随时联系我们的团队。我们致力于不断改进平台，为您提供最佳的使用体验。
+                    </p>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary">返回首页</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

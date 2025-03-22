@@ -338,9 +338,64 @@ def invite(group_id):
     else:
         # 如果没有邀请码，生成一个
         if not group.invite_code:
-            group.generate_invite_code()
+            import uuid
+            group.invite_code = str(uuid.uuid4())[:8]
             db.session.commit()
-            
+        
         invite_url = url_for('groups.join', group_id=group_id, code=group.invite_code, _external=True)
     
     return render_template('groups/invite.html', group=group, invite_url=invite_url)
+
+@groups_bp.route('/<int:group_id>/update_settings', methods=['POST'])
+@login_required
+def update_settings(group_id):
+    """更新群组设置"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 确保用户是群组管理员或所有者
+    user_role = current_user.get_role_in_group(group_id)
+    if not user_role or (user_role != 'admin' and group.owner_id != current_user.id):
+        flash('您没有权限修改群组设置', 'danger')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    form_type = request.form.get('form_type')
+    
+    # 处理基本信息表单
+    if form_type == 'basic':
+        group.name = request.form.get('name', group.name)
+        group.description = request.form.get('description', group.description)
+        
+        # 处理头像上传
+        if 'avatar' in request.files and request.files['avatar'].filename:
+            avatar = request.files['avatar']
+            avatar_filename = f"group_{group_id}_avatar.{avatar.filename.split('.')[-1]}"
+            avatar_path = os.path.join('app/static/uploads/avatars', avatar_filename)
+            os.makedirs(os.path.dirname(avatar_path), exist_ok=True)
+            avatar.save(avatar_path)
+            group.avatar = f"uploads/avatars/{avatar_filename}"
+        
+        # 处理横幅上传
+        if 'banner' in request.files and request.files['banner'].filename:
+            banner = request.files['banner']
+            banner_filename = f"group_{group_id}_banner.{banner.filename.split('.')[-1]}"
+            banner_path = os.path.join('app/static/uploads/banners', banner_filename)
+            os.makedirs(os.path.dirname(banner_path), exist_ok=True)
+            banner.save(banner_path)
+            group.banner = f"uploads/banners/{banner_filename}"
+        
+        flash('群组基本信息已更新', 'success')
+    
+    # 处理隐私设置表单
+    elif form_type == 'privacy':
+        is_public = request.form.get('is_public') == 'true'
+        group.is_public = is_public
+        
+        flash('群组隐私设置已更新', 'success')
+    
+    # 处理高级设置表单
+    elif form_type == 'advanced':
+        # 如果需要处理其他设置，可以在这里添加
+        flash('群组高级设置已更新', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('groups.settings', group_id=group_id))
