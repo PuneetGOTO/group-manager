@@ -1,11 +1,11 @@
 """Discord OAuth配置"""
 import os
 
-# Discord API设置 - 添加明确的默认值
-DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID', '1353003948948066395')
-DISCORD_CLIENT_SECRET = os.getenv('DISCORD_CLIENT_SECRET', 'L7OsCJD-aSxJ0e-JSqaIXH7gzrULsKRT')
+# Discord API设置 - 使用环境变量，避免硬编码敏感信息
+DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
+DISCORD_CLIENT_SECRET = os.getenv('DISCORD_CLIENT_SECRET')
 DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI', 'https://web-production-a67c.up.railway.app/discord/callback')
-DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN', 'MTM1MzAwMzk0ODk0ODA2NjM5NQ.GZ-ez-.6Agv3dgymZlsAOmlj7i-PW6q4SLwsRtsbWPtBs')
+DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 # 机器人权限设置
 # 826484758代表广泛的权限，包括管理服务器、角色、频道等

@@ -8,6 +8,7 @@ from .config import (
     DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI,
     DISCORD_BOT_TOKEN, DISCORD_BOT_PERMISSIONS, DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_TOKEN_URL
 )
+from flask import current_app
 
 class DiscordClient:
     """Discord API交互客户端"""
@@ -15,13 +16,13 @@ class DiscordClient:
     @staticmethod
     def get_auth_url(state=None, use_login_redirect=False):
         """获取Discord OAuth授权URL"""
-        from .config import DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_CLIENT_ID, DISCORD_BOT_PERMISSIONS
+        from .config import DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_CLIENT_ID, DISCORD_BOT_PERMISSIONS, DISCORD_REDIRECT_URI
         
-        # 确保client_id是字符串格式且非空
-        client_id = str(DISCORD_CLIENT_ID) if DISCORD_CLIENT_ID else '1353003948948066395'
-        if not client_id or client_id == '':
-            client_id = '1353003948948066395'  # 使用硬编码的备用ID
-        
+        # 验证必需的凭据是否存在
+        if not DISCORD_CLIENT_ID:
+            current_app.logger.error("Discord客户端ID未设置，请在环境变量中配置DISCORD_CLIENT_ID")
+            return None
+
         # 使用配置的权限值
         permissions = DISCORD_BOT_PERMISSIONS if DISCORD_BOT_PERMISSIONS else "826484758"
         
@@ -31,7 +32,7 @@ class DiscordClient:
             # 构建通过登录页面的OAuth流程（类似Dyno的方式）
             scope = 'identify email guilds bot'
             # 先创建基本的授权URL
-            auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
+            auth_url = f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code"
             
             # 添加重定向URI和状态参数
             auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
@@ -45,7 +46,7 @@ class DiscordClient:
         else:
             # 使用标准的官方Discord授权URL（推荐方式）
             scope = 'identify email guilds bot'
-            auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
+            auth_url = f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code"
             
             # 添加重定向URI (需要URL编码)
             auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
@@ -59,7 +60,12 @@ class DiscordClient:
     @staticmethod
     def exchange_code(code):
         """用授权码换取访问令牌"""
-        from .config import DISCORD_TOKEN_URL
+        from .config import DISCORD_TOKEN_URL, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI
+        
+        # 验证必需的凭据是否存在
+        if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
+            current_app.logger.error("Discord凭据未设置，请在环境变量中配置DISCORD_CLIENT_ID和DISCORD_CLIENT_SECRET")
+            return None
         
         data = {
             'client_id': DISCORD_CLIENT_ID,
