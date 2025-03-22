@@ -23,11 +23,11 @@
                     <div class="mt-3">
                         <div class="d-flex justify-content-around">
                             <div class="text-center">
-                                <h5>{{ user.groups|length }}</h5>
+                                <h5>{{ user.groups.count() }}</h5>
                                 <small class="text-muted">群组</small>
                             </div>
                             <div class="text-center">
-                                <h5>{{ user.created_groups|length }}</h5>
+                                <h5>{{ user.created_groups.count() }}</h5>
                                 <small class="text-muted">创建的群组</small>
                             </div>
                         </div>
