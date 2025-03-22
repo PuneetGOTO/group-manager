@@ -19,12 +19,9 @@ class DiscordClient:
         # 确保client_id是字符串格式
         client_id = str(DISCORD_CLIENT_ID) if DISCORD_CLIENT_ID else '1353003948948066395'
         
-        # 使用简化的授权URL格式，避免复杂参数
+        # 构建完整的授权URL，确保包含redirect_uri
         scope = 'identify email guilds guilds.members.read bot'
-        auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&response_type=code"
-        
-        # 添加重定向URI参数（如果需要）
-        # auth_url += f"&redirect_uri=http://localhost:8080/discord/callback"
+        auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_uri={DISCORD_REDIRECT_URI}&response_type=code&scope={scope}"
         
         if state:
             auth_url += f"&state={state}"
