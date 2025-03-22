@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.models import User
 from app import db
 from werkzeug.security import generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -30,16 +30,18 @@ def login():
             flash('该账户已被停用，请联系管理员', 'warning')
             return render_template('auth/login.html')
         
-        # 登录用户
-        login_user(user, remember=remember)
+        # 登录用户 - 默认启用记住我功能，除非用户明确取消勾选
+        login_user(user, remember=remember, duration=timedelta(days=30))
         
         # 更新最后访问时间
         user.last_seen = datetime.utcnow()
         db.session.commit()
         
+        flash('登录成功！', 'success')
+        
         # 重定向到登录前的页面或首页
         next_page = request.args.get('next')
-        if next_page:
+        if next_page and next_page.startswith('/'):  # 确保只接受相对URL
             return redirect(next_page)
         return redirect(url_for('main.index'))
     

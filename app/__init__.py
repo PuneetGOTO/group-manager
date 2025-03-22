@@ -25,9 +25,11 @@ def create_app():
     
     # 记住我功能配置 - 设置为30天
     app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
-    app.config['REMEMBER_COOKIE_SECURE'] = True
+    app.config['REMEMBER_COOKIE_SECURE'] = os.getenv('PRODUCTION', 'False').lower() == 'true'  # 只在生产环境设为True
     app.config['REMEMBER_COOKIE_HTTPONLY'] = True
     app.config['REMEMBER_COOKIE_REFRESH_EACH_REQUEST'] = True
+    app.config['REMEMBER_COOKIE_NAME'] = 'remember_token'  # 自定义cookie名称
+    app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'  # 允许从外部链接进入时保持登录状态
     
     # 初始化扩展
     db.init_app(app)
