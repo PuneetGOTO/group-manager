@@ -27,7 +27,7 @@
                                 <small class="text-muted">群组</small>
                             </div>
                             <div class="text-center">
-                                <h5>{{ user.created_groups.count() }}</h5>
+                                <h5>{{ user.owned_groups|length }}</h5>
                                 <small class="text-muted">创建的群组</small>
                             </div>
                         </div>
