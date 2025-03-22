@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}个人仪表盘 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：用户信息 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename=current_user.profile_image) }}" class="rounded-circle avatar-lg mb-3" alt="{{ current_user.username }}">
+                    <h5 class="card-title">{{ current_user.username }}</h5>
+                    <p class="text-muted">{{ current_user.email }}</p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('user.edit_profile') }}" class="btn btn-outline-primary btn-sm">编辑个人资料</a>
+                    </div>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('user.dashboard') }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('user.notifications') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-bell me-2"></i> 通知
+                    </a>
+                    <a href="{{ url_for('user.settings') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-cog me-2"></i> 设置
+                    </a>
+                </div>
+            </div>
+            
+            {% if current_user.is_connected_to_discord() %}
+            <div class="card mb-4">
+                <div class="card-header bg-discord text-white">
+                    <i class="fab fa-discord me-2"></i> Discord 已连接
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        {% if current_user.discord_avatar %}
+                        <img src="{{ current_user.discord_avatar }}" class="rounded-circle me-2" style="width: 32px; height: 32px;" alt="Discord Avatar">
+                        {% else %}
+                        <div class="discord-default-avatar me-2"></div>
+                        {% endif %}
+                        <div>{{ current_user.discord_username }}</div>
+                    </div>
+                    <a href="{{ url_for('discord.manage_servers') }}" class="btn btn-sm btn-discord w-100">
+                        <i class="fas fa-server me-1"></i> 管理服务器
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fab fa-discord me-2"></i> Discord 连接
+                </div>
+                <div class="card-body">
+                    <p class="card-text small">连接您的Discord账号以管理服务器和群组。</p>
+                    <a href="{{ url_for('discord.connect') }}" class="btn btn-discord w-100">
+                        <i class="fab fa-discord me-1"></i> 连接Discord
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 我的群组 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">我的群组</h5>
+                    <a href="{{ url_for('groups.create') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> 创建群组
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if user_groups.count() > 0 %}
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        {% for group in user_groups %}
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-img-top group-card-img" style="background-image: url({{ url_for('static', filename=group.banner) }});">
+                                    <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-sm rounded-circle group-avatar-overlay">
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ group.name }}</h5>
+                                    <p class="card-text small text-muted">{{ group.description|truncate(80) }}</p>
+                                </div>
+                                <div class="card-footer bg-transparent d-grid">
+                                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-primary btn-sm">进入群组</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                        <h5>您还没有加入任何群组</h5>
+                        <p class="text-muted">创建一个群组或加入现有群组开始互动吧！</p>
+                        <a href="{{ url_for('groups.create') }}" class="btn btn-primary me-2">创建群组</a>
+                        <a href="{{ url_for('groups.explore') }}" class="btn btn-outline-secondary">发现群组</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 最近帖子 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">最近帖子</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_posts %}
+                    <div class="list-group">
+                        {% for post in recent_posts %}
+                        <a href="{{ url_for('groups.view_post', group_id=post.group_id, post_id=post.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ post.title or '无标题' }}</h6>
+                                <small class="text-muted">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                            <p class="mb-1">{{ post.content|truncate(100) }}</p>
+                            <small>
+                                <i class="fas fa-users me-1"></i> {{ post.group.name }}
+                                {% if post.is_announcement %}
+                                <span class="badge bg-warning ms-2">公告</span>
+                                {% endif %}
+                            </small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-scroll fa-3x text-muted mb-3"></i>
+                        <p>暂无最近帖子</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 即将到来的活动 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">即将到来的活动</h5>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_events %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>活动名称</th>
+                                    <th>群组</th>
+                                    <th>开始时间</th>
+                                    <th>地点</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in upcoming_events %}
+                                <tr>
+                                    <td>{{ event.title }}</td>
+                                    <td>{{ event.group.name }}</td>
+                                    <td>{{ event.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ event.location or '线上' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('groups.view_event', group_id=event.group_id, event_id=event.id) }}" class="btn btn-sm btn-outline-primary">
+                                            查看
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
+                        <p>暂无即将到来的活动</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .bg-discord {
+        background-color: #5865F2;
+    }
+    
+    .btn-discord {
+        background-color: #5865F2;
+        color: white;
+    }
+    
+    .btn-discord:hover {
+        background-color: #4752C4;
+        color: white;
+    }
+    
+    .discord-default-avatar {
+        width: 32px;
+        height: 32px;
+        background-color: #5865F2;
+        border-radius: 50%;
+    }
+    
+    .group-card-img {
+        height: 80px;
+        background-size: cover;
+        background-position: center;
+        position: relative;
+    }
+    
+    .group-avatar-overlay {
+        position: absolute;
+        bottom: -15px;
+        left: 15px;
+        border: 2px solid white;
+        width: 40px;
+        height: 40px;
+    }
+</style>
+{% endblock %}
