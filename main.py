@@ -1,5 +1,6 @@
 from app import create_app, db
 import logging
+import traceback
 import sys
 import os
 
@@ -34,4 +35,10 @@ def handle_exception(e):
     return '500 Internal Server Error - Check logs for details', 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    try:
+        # 使用127.0.0.1而不是0.0.0.0，以确保正确解析重定向URL
+        app.logger.info("正在启动应用服务器，监听于 http://127.0.0.1:8080/")
+        app.run(host='127.0.0.1', port=8080, debug=True)
+    except Exception as e:
+        print(f"服务器启动失败: {str(e)}")
+        traceback.print_exc()
