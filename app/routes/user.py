@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort
 from flask_login import current_user, login_required
-from app.models import User, Group, Post, Event
+from app.models import User, Group, Post, Event, event_participants
 from app import db
 from datetime import datetime
 import os
