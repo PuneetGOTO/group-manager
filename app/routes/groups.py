@@ -488,6 +488,26 @@ def invite(group_id):
     
     return render_template('groups/invite.html', group=group, invite_url=invite_url)
 
+@groups_bp.route('/<int:group_id>/regenerate_invite', methods=['POST'])
+@login_required
+def regenerate_invite(group_id):
+    """重新生成群组邀请链接"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查用户是否在群组中，且是管理员或群主
+    user_role = current_user.get_role_in_group(group_id)
+    if group not in current_user.groups or (user_role != 'admin' and group.owner_id != current_user.id):
+        flash('您没有权限重新生成邀请链接', 'warning')
+        return redirect(url_for('groups.index'))
+    
+    # 生成新的邀请码
+    import uuid
+    group.invite_code = str(uuid.uuid4())[:8]
+    db.session.commit()
+    
+    flash('邀请链接已重新生成', 'success')
+    return redirect(url_for('groups.invite', group_id=group_id))
+
 @groups_bp.route('/<int:group_id>/update_settings', methods=['POST'])
 @login_required
 def update_settings(group_id):
