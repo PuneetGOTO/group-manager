@@ -41,7 +41,6 @@ class User(db.Model, UserMixin):
     owned_groups = db.relationship('Group', backref='owner', lazy=True)
     groups = db.relationship('Group', secondary=group_members, lazy='dynamic')
     posts = db.relationship('Post', backref='author', lazy=True)
-    comments = db.relationship('Comment', backref='author', lazy=True)
     
     @property
     def password(self):

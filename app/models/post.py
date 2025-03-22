@@ -42,8 +42,8 @@ class Comment(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
     
-    # 关系
-    author = db.relationship('User', backref='comments')
+    # 关系 - 单向关系，不使用backref避免冲突
+    author = db.relationship('User')
     
     def __repr__(self):
         return f'<Comment {self.id}>'
