@@ -147,7 +147,7 @@
                     <h5 class="mb-0">活动讨论</h5>
                 </div>
                 <div class="card-body">
-                    {% if current_user.is_authenticated and current_user in event.group.members %}
+                    {% if current_user.is_authenticated and current_user in event.group.user_members %}
                     <form method="POST" action="{{ url_for('groups.comment_event', group_id=event.group.id, event_id=event.id) }}" class="mb-4">
                         <div class="mb-3">
                             <textarea class="form-control" id="comment" name="content" rows="3" placeholder="发表评论..."></textarea>

@@ -19,7 +19,7 @@ class Group(db.Model):
     # 关系
     posts = db.relationship('Post', backref='group', lazy=True, cascade="all, delete-orphan")
     events = db.relationship('Event', backref='group', lazy=True, cascade="all, delete-orphan")
-    members = db.relationship('User', secondary='group_members', backref=db.backref('groups', lazy='dynamic'), lazy='dynamic')
+    user_members = db.relationship('User', secondary='group_members', backref=db.backref('groups', lazy='dynamic'), lazy='dynamic')
     
     def __init__(self, name, owner_id, description=None, is_public=True, **kwargs):
         self.name = name
@@ -38,7 +38,7 @@ class Group(db.Model):
     
     def get_members_count(self):
         """获取群组成员数量"""
-        return self.members.count()
+        return self.user_members.count()
     
     def get_admin_members(self):
         """获取群组管理员"""
