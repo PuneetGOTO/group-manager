@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, abort
+from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, current_app
 from flask_login import current_user, login_required
 from app.models import Group, Post, Comment, Event, User, group_members, event_participants
 from app import db
@@ -548,22 +548,8 @@ def invite_by_email(group_id):
     # 这里可以集成邮件发送功能，例如使用Flask-Mail
     # 暂时只记录邀请并显示成功消息
     
-    # 记录已发送的邀请（如果有邀请模型的话）
-    # 这里假设有Invitation模型，实际应用中需要根据实际模型调整
-    try:
-        from app.models import Invitation
-        for email in emails:
-            invitation = Invitation(
-                email=email,
-                group_id=group_id,
-                inviter_id=current_user.id,
-                message=message
-            )
-            db.session.add(invitation)
-        db.session.commit()
-    except ImportError:
-        # 如果没有Invitation模型，简单记录日志
-        app.logger.info(f"User {current_user.id} invited emails: {', '.join(emails)} to group {group_id}")
+    # 记录发送的邀请信息到日志
+    current_app.logger.info(f"User {current_user.id} invited emails: {', '.join(emails)} to group {group_id}")
     
     flash(f'邀请已发送至 {len(emails)} 个邮箱地址', 'success')
     return redirect(url_for('groups.invite', group_id=group_id))
