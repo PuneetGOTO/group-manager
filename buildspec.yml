@@ -25,3 +25,19 @@ artifacts:
     - .ebextensions/**/*
     - static/**/*
   discard-paths: no
+
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "Nothing to do in preBuild for Flask application"
+    build:
+      commands:
+        - echo "Flask applications don't require frontend build"
+    postBuild:
+      commands:
+        - echo "postBuild completed"
+  artifacts:
+    baseDirectory: /
+    files:
+      - '**/*'
