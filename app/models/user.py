@@ -55,7 +55,7 @@ class User(db.Model, UserMixin):
     
     def get_role_in_group(self, group_id):
         """获取用户在群组中的角色"""
-        stmt = db.select([group_members.c.role]).where(
+        stmt = db.select(group_members.c.role).where(
             (group_members.c.user_id == self.id) & 
             (group_members.c.group_id == group_id)
         )
