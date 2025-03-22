@@ -17,8 +17,10 @@ class DiscordClient:
         """获取Discord OAuth授权URL"""
         from .config import DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_CLIENT_ID, DISCORD_BOT_PERMISSIONS
         
-        # 确保client_id是字符串格式
+        # 确保client_id是字符串格式且非空
         client_id = str(DISCORD_CLIENT_ID) if DISCORD_CLIENT_ID else '1353003948948066395'
+        if not client_id or client_id == '':
+            client_id = '1353003948948066395'  # 使用硬编码的备用ID
         
         # 使用配置的权限值
         permissions = DISCORD_BOT_PERMISSIONS if DISCORD_BOT_PERMISSIONS else "826484758"
