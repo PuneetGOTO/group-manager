@@ -3,6 +3,7 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import uuid
+from app.models.group import group_members
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -19,45 +20,63 @@ group_members = db.Table('group_members',
 class User(db.Model, UserMixin):
     """用户模型"""
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
+    username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
-    profile_image = db.Column(db.String(255), default='default.jpg')
+    password_hash = db.Column(db.String(128), nullable=False)
+    profile_image = db.Column(db.String(255), default='default_profile.png')
     bio = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)
+    
+    # Discord集成相关字段
+    discord_id = db.Column(db.String(64), unique=True, nullable=True)
+    discord_username = db.Column(db.String(100), nullable=True)
+    discord_avatar = db.Column(db.String(255), nullable=True)
+    discord_access_token = db.Column(db.String(255), nullable=True)
+    discord_refresh_token = db.Column(db.String(255), nullable=True)
+    discord_token_expires = db.Column(db.DateTime, nullable=True)
     
     # 关系
     owned_groups = db.relationship('Group', backref='owner', lazy=True)
-    groups = db.relationship('Group', secondary=group_members, 
-                            backref=db.backref('members', lazy='dynamic'))
+    groups = db.relationship('Group', secondary=group_members, backref=db.backref('members', lazy='dynamic'))
     posts = db.relationship('Post', backref='author', lazy=True)
+    comments = db.relationship('Comment', backref='author', lazy=True)
     
-    def __init__(self, username, email, password, **kwargs):
-        self.username = username
-        self.email = email
-        self.set_password(password)
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    @property
+    def password(self):
+        raise AttributeError('密码不是可读属性')
     
-    def set_password(self, password):
-        """设置用户密码"""
+    @password.setter
+    def password(self, password):
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        """验证用户密码"""
         return check_password_hash(self.password_hash, password)
     
-    def get_user_groups(self):
-        """获取用户所属的群组"""
-        return self.groups
-    
     def get_role_in_group(self, group_id):
-        """获取用户在指定群组中的角色"""
-        group_member = db.session.query(group_members).filter_by(
-            user_id=self.id, group_id=group_id).first()
-        return group_member.role if group_member else None
+        """获取用户在群组中的角色"""
+        stmt = db.select([group_members.c.role]).where(
+            (group_members.c.user_id == self.id) & 
+            (group_members.c.group_id == group_id)
+        )
+        result = db.session.execute(stmt).first()
+        return result[0] if result else None
     
+    def is_connected_to_discord(self):
+        """检查用户是否已连接Discord账号"""
+        return bool(self.discord_id)
+    
+    def disconnect_discord(self):
+        """断开Discord账号连接"""
+        self.discord_id = None
+        self.discord_username = None
+        self.discord_avatar = None
+        self.discord_access_token = None
+        self.discord_refresh_token = None
+        self.discord_token_expires = None
+        db.session.commit()
+        
     def __repr__(self):
         return f'<User {self.username}>'

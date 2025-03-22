@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Discord服务器 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-4">您的Discord服务器</h1>
+            <p class="text-muted">您可以将Discord服务器导入为群组，以便在本系统中管理。导入后，您可以同步Discord服务器成员、消息和事件。</p>
+        </div>
+    </div>
+
+    {% if guilds %}
+    <div class="row">
+        {% for guild in guilds %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        {% if guild.icon %}
+                        <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png" class="me-3 rounded-circle" width="50" height="50" alt="{{ guild.name }}" />
+                        {% else %}
+                        <div class="me-3 rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; color: white;">
+                            {{ guild.name[:1] }}
+                        </div>
+                        {% endif %}
+                        <h5 class="card-title mb-0">{{ guild.name }}</h5>
+                    </div>
+                    
+                    {% if guild.permissions|int & 0x8 == 0x8 %}
+                        <!-- 检查是否有管理员权限 (0x8) -->
+                        <p class="text-success"><i class="fas fa-check-circle"></i> 您拥有管理员权限</p>
+                        <a href="{{ url_for('discord.import_guild', guild_id=guild.id) }}" class="btn btn-primary w-100">导入为群组</a>
+                    {% else %}
+                        <p class="text-warning"><i class="fas fa-exclamation-triangle"></i> 您需要管理员权限才能导入</p>
+                        <button class="btn btn-secondary w-100" disabled>权限不足</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> 您没有加入任何Discord服务器，或者没有足够的权限查看服务器列表。
+    </div>
+    {% endif %}
+    
+    <div class="mt-4">
+        <a href="{{ url_for('user.settings') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </a>
+    </div>
+</div>
+{% endblock %}
