@@ -14,18 +14,17 @@ class DiscordClient:
     @staticmethod
     def get_auth_url(state=None):
         """获取Discord OAuth授权URL"""
-        from .config import DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_CLIENT_ID, DISCORD_REDIRECT_URI
+        from .config import DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_CLIENT_ID
         
         # 确保client_id是字符串格式
-        client_id = str(DISCORD_CLIENT_ID) if DISCORD_CLIENT_ID else ''
+        client_id = str(DISCORD_CLIENT_ID) if DISCORD_CLIENT_ID else '1353003948948066395'
         
-        # 使用硬编码的回调URL和客户端ID以确保一致性
-        if not client_id:
-            # 如果环境变量中没有，使用.env中的值
-            client_id = "1353003948948066395"
+        # 使用简化的授权URL格式，避免复杂参数
+        scope = 'identify email guilds guilds.members.read bot'
+        auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&response_type=code"
         
-        scope = '%20'.join(DISCORD_SCOPES)
-        auth_url = f"{DISCORD_AUTHORIZATION_BASE_URL}?client_id={client_id}&redirect_uri={DISCORD_REDIRECT_URI}&response_type=code&scope={scope}"
+        # 添加重定向URI参数（如果需要）
+        # auth_url += f"&redirect_uri=http://localhost:8080/discord/callback"
         
         if state:
             auth_url += f"&state={state}"
