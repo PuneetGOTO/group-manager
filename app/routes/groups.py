@@ -1,0 +1,346 @@
+from flask import Blueprint, render_template, request, flash, redirect, url_for, abort
+from flask_login import current_user, login_required
+from app.models import Group, Post, Comment, Event, User, group_members, event_participants
+from app import db
+from datetime import datetime
+import os
+
+groups_bp = Blueprint('groups', __name__)
+
+@groups_bp.route('/')
+@login_required
+def index():
+    """显示用户所有群组"""
+    user_groups = current_user.groups
+    owned_groups = current_user.owned_groups
+    
+    # 如果还是公开群组，也可以加入
+    public_groups = Group.query.filter_by(is_public=True).all()
+    
+    return render_template('groups/index.html', 
+                          user_groups=user_groups, 
+                          owned_groups=owned_groups,
+                          public_groups=public_groups)
+
+@groups_bp.route('/create', methods=['GET', 'POST'])
+@login_required
+def create():
+    """创建新群组"""
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        is_public = True if request.form.get('is_public') == 'on' else False
+        
+        # 验证表单
+        if not name:
+            flash('群组名称不能为空', 'danger')
+            return render_template('groups/create.html')
+        
+        # 创建新群组
+        new_group = Group(
+            name=name,
+            description=description,
+            is_public=is_public,
+            owner_id=current_user.id
+        )
+        
+        # 保存到数据库
+        db.session.add(new_group)
+        db.session.flush()  # 获取新群组ID
+        
+        # 将创建者添加为群组管理员
+        stmt = group_members.insert().values(
+            user_id=current_user.id,
+            group_id=new_group.id,
+            role='admin',
+            joined_at=datetime.utcnow()
+        )
+        db.session.execute(stmt)
+        
+        db.session.commit()
+        
+        flash('群组创建成功', 'success')
+        return redirect(url_for('groups.view', group_id=new_group.id))
+    
+    return render_template('groups/create.html')
+
+@groups_bp.route('/<int:group_id>')
+def view(group_id):
+    """查看群组详情"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 非公开群组需要成员才能查看
+    if not group.is_public and (not current_user.is_authenticated or group not in current_user.groups):
+        flash('您没有权限查看该群组', 'warning')
+        return redirect(url_for('groups.index'))
+    
+    # 获取群组的帖子
+    posts = Post.query.filter_by(group_id=group_id).order_by(Post.created_at.desc()).all()
+    
+    # 获取群组的即将到来的活动
+    upcoming_events = Event.query.filter_by(group_id=group_id).filter(
+        Event.start_time > datetime.utcnow()
+    ).order_by(Event.start_time).all()
+    
+    # 检查当前用户是否为管理员
+    is_admin = False
+    if current_user.is_authenticated and group in current_user.groups:
+        user_role = current_user.get_role_in_group(group_id)
+        is_admin = (user_role == 'admin' or group.owner_id == current_user.id)
+    
+    return render_template('groups/view.html', 
+                          group=group, 
+                          posts=posts, 
+                          upcoming_events=upcoming_events,
+                          is_admin=is_admin)
+
+@groups_bp.route('/<int:group_id>/join')
+@login_required
+def join(group_id):
+    """加入群组"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查用户是否已在群组中
+    if group in current_user.groups:
+        flash('您已经是该群组成员', 'info')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    # 检查群组是否公开
+    if not group.is_public:
+        invite_code = request.args.get('code')
+        if not invite_code or invite_code != group.invite_code:
+            flash('该群组需要邀请码才能加入', 'warning')
+            return redirect(url_for('groups.index'))
+    
+    # 将用户添加到群组
+    stmt = group_members.insert().values(
+        user_id=current_user.id,
+        group_id=group_id,
+        role='member',
+        joined_at=datetime.utcnow()
+    )
+    db.session.execute(stmt)
+    db.session.commit()
+    
+    flash('成功加入群组', 'success')
+    return redirect(url_for('groups.view', group_id=group_id))
+
+@groups_bp.route('/<int:group_id>/leave')
+@login_required
+def leave(group_id):
+    """离开群组"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 群组创建者不能离开
+    if group.owner_id == current_user.id:
+        flash('群组创建者不能离开群组，请先转让群组所有权', 'warning')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    # 检查用户是否在群组中
+    if group not in current_user.groups:
+        flash('您不是该群组成员', 'info')
+        return redirect(url_for('groups.index'))
+    
+    # 移除用户与群组的关联
+    stmt = group_members.delete().where(
+        (group_members.c.user_id == current_user.id) & 
+        (group_members.c.group_id == group_id)
+    )
+    db.session.execute(stmt)
+    db.session.commit()
+    
+    flash('已成功离开群组', 'success')
+    return redirect(url_for('groups.index'))
+
+@groups_bp.route('/<int:group_id>/post/create', methods=['GET', 'POST'])
+@login_required
+def create_post(group_id):
+    """创建群组帖子"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查用户是否在群组中
+    if group not in current_user.groups:
+        flash('只有群组成员可以发帖', 'warning')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        
+        # 验证表单
+        if not content:
+            flash('帖子内容不能为空', 'danger')
+            return render_template('groups/create_post.html', group=group)
+        
+        # 创建新帖子
+        new_post = Post(
+            title=title,
+            content=content,
+            author_id=current_user.id,
+            group_id=group_id
+        )
+        
+        # 保存到数据库
+        db.session.add(new_post)
+        db.session.commit()
+        
+        flash('帖子发布成功', 'success')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    return render_template('groups/create_post.html', group=group)
+
+@groups_bp.route('/<int:group_id>/event/create', methods=['GET', 'POST'])
+@login_required
+def create_event(group_id):
+    """创建群组活动"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查用户是否在群组中
+    if group not in current_user.groups:
+        flash('只有群组成员可以创建活动', 'warning')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        location = request.form.get('location')
+        start_date = request.form.get('start_date')
+        start_time = request.form.get('start_time')
+        end_date = request.form.get('end_date')
+        end_time = request.form.get('end_time')
+        is_online = True if request.form.get('is_online') == 'on' else False
+        online_url = request.form.get('online_url') if is_online else None
+        max_participants = request.form.get('max_participants', 0)
+        
+        # 验证表单
+        if not title or not start_date or not start_time or not end_date or not end_time:
+            flash('带*的字段为必填项', 'danger')
+            return render_template('groups/create_event.html', group=group)
+        
+        # 解析日期和时间
+        start_datetime = datetime.strptime(f'{start_date} {start_time}', '%Y-%m-%d %H:%M')
+        end_datetime = datetime.strptime(f'{end_date} {end_time}', '%Y-%m-%d %H:%M')
+        
+        # 检查日期有效性
+        if start_datetime >= end_datetime:
+            flash('结束时间必须晚于开始时间', 'danger')
+            return render_template('groups/create_event.html', group=group)
+        
+        # 创建新活动
+        new_event = Event(
+            title=title,
+            description=description,
+            location=location,
+            start_time=start_datetime,
+            end_time=end_datetime,
+            is_online=is_online,
+            online_url=online_url,
+            max_participants=max_participants,
+            creator_id=current_user.id,
+            group_id=group_id
+        )
+        
+        # 保存到数据库
+        db.session.add(new_event)
+        db.session.flush()  # 获取新活动ID
+        
+        # 将创建者添加为参与者
+        new_event.participants.append(current_user)
+        
+        db.session.commit()
+        
+        flash('活动创建成功', 'success')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    return render_template('groups/create_event.html', group=group)
+
+@groups_bp.route('/<int:group_id>/settings', methods=['GET', 'POST'])
+@login_required
+def settings(group_id):
+    """群组设置"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查权限 - 只有创建者或管理员可以访问
+    if group.owner_id != current_user.id and current_user.get_role_in_group(group_id) != 'admin':
+        flash('您没有权限修改群组设置', 'warning')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description')
+        is_public = True if request.form.get('is_public') == 'on' else False
+        
+        # 验证表单
+        if not name:
+            flash('群组名称不能为空', 'danger')
+            return render_template('groups/settings.html', group=group)
+        
+        # 更新群组信息
+        group.name = name
+        group.description = description
+        
+        # 处理公开状态变更
+        if group.is_public != is_public:
+            group.is_public = is_public
+            if not is_public and not group.invite_code:
+                group.generate_invite_code()
+            elif is_public:
+                group.invite_code = None
+        
+        db.session.commit()
+        
+        flash('群组设置已更新', 'success')
+        return redirect(url_for('groups.view', group_id=group_id))
+    
+    return render_template('groups/settings.html', group=group)
+
+@groups_bp.route('/<int:group_id>/members')
+@login_required
+def members(group_id):
+    """查看群组成员"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 非公开群组需要成员才能查看
+    if not group.is_public and (not current_user.is_authenticated or group not in current_user.groups):
+        flash('您没有权限查看该群组', 'warning')
+        return redirect(url_for('groups.index'))
+    
+    # 获取所有成员及其角色
+    members_query = db.session.query(User, group_members.c.role).join(
+        group_members, User.id == group_members.c.user_id
+    ).filter(group_members.c.group_id == group_id).all()
+    
+    # 检查当前用户是否为管理员
+    is_admin = False
+    if current_user.is_authenticated and group in current_user.groups:
+        user_role = current_user.get_role_in_group(group_id)
+        is_admin = (user_role == 'admin' or group.owner_id == current_user.id)
+    
+    return render_template('groups/members.html', 
+                          group=group, 
+                          members=members_query,
+                          is_admin=is_admin)
+
+@groups_bp.route('/<int:group_id>/invite')
+@login_required
+def invite(group_id):
+    """查看群组邀请链接"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查用户是否在群组中
+    if group not in current_user.groups:
+        flash('您不是该群组成员', 'warning')
+        return redirect(url_for('groups.index'))
+    
+    # 如果群组是公开的，直接使用公开链接
+    if group.is_public:
+        invite_url = url_for('groups.view', group_id=group_id, _external=True)
+    else:
+        # 如果没有邀请码，生成一个
+        if not group.invite_code:
+            group.generate_invite_code()
+            db.session.commit()
+            
+        invite_url = url_for('groups.join', group_id=group_id, code=group.invite_code, _external=True)
+    
+    return render_template('groups/invite.html', group=group, invite_url=invite_url)

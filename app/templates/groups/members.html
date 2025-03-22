@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ group.name }} - 成员列表 - 群组管理系统{% endblock %}
+
+{% block content %}
+<!-- 群组头部信息 -->
+<div class="card mb-4">
+    <div class="group-banner" style="background-image: url('{{ url_for('static', filename=group.banner) }}');">
+        <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-lg group-avatar" alt="{{ group.name }}">
+    </div>
+    <div class="card-body pt-5">
+        <div class="row">
+            <div class="col-md-8">
+                <h1 class="mt-2">{{ group.name }}</h1>
+                <p class="text-muted">
+                    <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                    <span class="ms-3">
+                        {% if group.is_public %}
+                        <i class="fas fa-globe me-1"></i> 公开群组
+                        {% else %}
+                        <i class="fas fa-lock me-1"></i> 私密群组
+                        {% endif %}
+                    </span>
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                {% if is_admin %}
+                <a href="{{ url_for('groups.invite', group_id=group.id) }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-1"></i> 邀请成员
+                </a>
+                <a href="{{ url_for('groups.settings', group_id=group.id) }}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-cog me-1"></i> 群组设置
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 群组功能导航 -->
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('groups.view', group_id=group.id) }}">动态</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('groups.members', group_id=group.id) }}">成员</a>
+    </li>
+    <!-- 其他功能标签可以添加在这里 -->
+</ul>
+
+<!-- 成员搜索功能 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('groups.members', group_id=group.id) }}">
+            <div class="input-group">
+                <input type="text" class="form-control" name="search" placeholder="搜索成员..." value="{{ search if search else '' }}">
+                <button class="btn btn-primary" type="submit">搜索</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 成员列表 -->
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">成员列表 ({{ group.get_members_count() }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>用户</th>
+                        <th>角色</th>
+                        <th>加入时间</th>
+                        {% if is_admin %}
+                        <th>操作</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ url_for('static', filename=member.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                                <div>
+                                    <a href="{{ url_for('user.view_profile', user_id=member.id) }}" class="text-decoration-none">{{ member.username }}</a>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if member.id == group.owner_id %}
+                            <span class="badge bg-danger">群主</span>
+                            {% elif member in group.admins %}
+                            <span class="badge bg-warning text-dark">管理员</span>
+                            {% else %}
+                            <span class="badge bg-secondary">成员</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ member.get_join_date(group.id).strftime('%Y-%m-%d') }}</td>
+                        {% if is_admin %}
+                        <td>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                    管理
+                                </button>
+                                <ul class="dropdown-menu">
+                                    {% if current_user.id == group.owner_id and member.id != group.owner_id %}
+                                        {% if member in group.admins %}
+                                        <li><a class="dropdown-item" href="{{ url_for('groups.remove_admin', group_id=group.id, user_id=member.id) }}">取消管理员</a></li>
+                                        {% else %}
+                                        <li><a class="dropdown-item" href="{{ url_for('groups.make_admin', group_id=group.id, user_id=member.id) }}">设为管理员</a></li>
+                                        {% endif %}
+                                    {% endif %}
+                                    
+                                    {% if (current_user.id == group.owner_id) or (current_user in group.admins and member.id != group.owner_id and member not in group.admins) %}
+                                    <li><a class="dropdown-item text-danger" href="{{ url_for('groups.remove_member', group_id=group.id, user_id=member.id) }}" onclick="return confirm('确定要将此成员移出群组吗？')">移出群组</a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

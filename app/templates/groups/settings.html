@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}群组设置 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">群组设置 - {{ group.name }}</h4>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-4">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="basic-tab" data-bs-toggle="tab" href="#basic" role="tab">基本信息</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="privacy-tab" data-bs-toggle="tab" href="#privacy" role="tab">隐私设置</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="advanced-tab" data-bs-toggle="tab" href="#advanced" role="tab">高级设置</a>
+                    </li>
+                </ul>
+                
+                <div class="tab-content">
+                    <!-- 基本信息 -->
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                        <form method="POST" action="{{ url_for('groups.update_settings', group_id=group.id) }}" enctype="multipart/form-data">
+                            <input type="hidden" name="form_type" value="basic">
+                            
+                            <div class="text-center mb-4">
+                                <img src="{{ url_for('static', filename=group.avatar) }}" alt="{{ group.name }}" class="avatar-xl mb-3" id="avatar-preview">
+                                <div class="mb-3">
+                                    <label for="avatar" class="btn btn-outline-primary">
+                                        <i class="fas fa-camera me-1"></i> 更换群组头像
+                                    </label>
+                                    <input type="file" id="avatar" name="avatar" class="d-none" accept="image/*">
+                                </div>
+                            </div>
+                            
+                            <div class="text-center mb-4">
+                                <div class="group-banner-preview mb-3" style="background-image: url('{{ url_for('static', filename=group.banner) }}'); height: 150px; background-size: cover; background-position: center;"></div>
+                                <div class="mb-3">
+                                    <label for="banner" class="btn btn-outline-primary">
+                                        <i class="fas fa-image me-1"></i> 更换群组横幅
+                                    </label>
+                                    <input type="file" id="banner" name="banner" class="d-none" accept="image/*">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="name" class="form-label">群组名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ group.name }}" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="description" class="form-label">群组描述</label>
+                                <textarea class="form-control" id="description" name="description" rows="4">{{ group.description }}</textarea>
+                                <div class="form-text">详细描述群组的目标、规则或活动内容</div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary">保存更改</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- 隐私设置 -->
+                    <div class="tab-pane fade" id="privacy" role="tabpanel">
+                        <form method="POST" action="{{ url_for('groups.update_settings', group_id=group.id) }}">
+                            <input type="hidden" name="form_type" value="privacy">
+                            
+                            <div class="mb-3">
+                                <h5>群组可见性</h5>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="is_public" id="public_true" value="true" {% if group.is_public %}checked{% endif %}>
+                                    <label class="form-check-label" for="public_true">
+                                        <i class="fas fa-globe me-1"></i> 公开群组
+                                    </label>
+                                    <div class="form-text ms-4">任何人都可以搜索并查看群组内容，自由加入</div>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="is_public" id="public_false" value="false" {% if not group.is_public %}checked{% endif %}>
+                                    <label class="form-check-label" for="public_false">
+                                        <i class="fas fa-lock me-1"></i> 私密群组
+                                    </label>
+                                    <div class="form-text ms-4">只有受邀用户才能加入群组并查看内容</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3" id="invite_code_section" {% if group.is_public %}style="display: none;"{% endif %}>
+                                <h5>邀请码</h5>
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" id="invite_code" value="{{ group.invite_code }}" readonly>
+                                    <button class="btn btn-outline-secondary" type="button" id="copy_invite_code">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" type="button" id="regenerate_invite_code">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">使用此邀请码邀请新成员加入群组</div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary">保存更改</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- 高级设置 -->
+                    <div class="tab-pane fade" id="advanced" role="tabpanel">
+                        <div class="mb-4">
+                            <h5>转让群组所有权</h5>
+                            <p class="text-muted">将群组所有权转让给其他成员。转让后，你将失去群主权限。</p>
+                            <form method="POST" action="{{ url_for('groups.transfer_ownership', group_id=group.id) }}" class="mb-3" id="transfer_form">
+                                <div class="mb-3">
+                                    <label for="new_owner" class="form-label">选择新群主 <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="new_owner" name="new_owner_id" required>
+                                        <option value="" selected disabled>-- 选择成员 --</option>
+                                        {% for member in members if member.id != current_user.id %}
+                                        <option value="{{ member.id }}">{{ member.username }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" class="btn btn-warning" id="transfer_btn">转让所有权</button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="mb-4">
+                            <h5 class="text-danger">删除群组</h5>
+                            <p class="text-muted">删除群组将永久移除所有相关内容，包括帖子、活动和成员关系。此操作无法撤销。</p>
+                            <form method="POST" action="{{ url_for('groups.delete', group_id=group.id) }}" id="delete_form">
+                                <div class="mb-3">
+                                    <label for="confirm_name" class="form-label">输入群组名称以确认删除 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="confirm_name" name="confirm_name" placeholder="{{ group.name }}" required>
+                                </div>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" class="btn btn-danger" id="delete_btn">永久删除群组</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 头像预览
+    document.getElementById('avatar').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('avatar-preview').src = e.target.result;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+    
+    // 横幅预览
+    document.getElementById('banner').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.querySelector('.group-banner-preview').style.backgroundImage = `url('${e.target.result}')`;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+    
+    // 公开/私密群组切换
+    document.querySelectorAll('input[name="is_public"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            const inviteCodeSection = document.getElementById('invite_code_section');
+            if (this.value === 'false') {
+                inviteCodeSection.style.display = 'block';
+            } else {
+                inviteCodeSection.style.display = 'none';
+            }
+        });
+    });
+    
+    // 复制邀请码
+    document.getElementById('copy_invite_code').addEventListener('click', function() {
+        const inviteCode = document.getElementById('invite_code');
+        inviteCode.select();
+        document.execCommand('copy');
+        alert('邀请码已复制到剪贴板');
+    });
+    
+    // 转让所有权确认
+    document.getElementById('transfer_form').addEventListener('submit', function(e) {
+        if (!confirm('确定要将群组所有权转让给选中的成员吗？此操作不可撤销。')) {
+            e.preventDefault();
+        }
+    });
+    
+    // 删除群组确认
+    document.getElementById('delete_form').addEventListener('submit', function(e) {
+        const confirmName = document.getElementById('confirm_name').value;
+        const groupName = '{{ group.name }}';
+        
+        if (confirmName !== groupName) {
+            alert('输入的群组名称不正确，无法删除');
+            e.preventDefault();
+            return;
+        }
+        
+        if (!confirm('警告：你即将永久删除此群组及其所有内容。此操作无法撤销。确定要继续吗？')) {
+            e.preventDefault();
+        }
+    });
+</script>
+{% endblock %}

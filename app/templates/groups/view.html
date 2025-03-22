@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<!-- 群组头部信息 -->
+<div class="card mb-4">
+    <div class="group-banner" style="background-image: url('{{ url_for('static', filename=group.banner) }}');">
+        <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-lg group-avatar" alt="{{ group.name }}">
+    </div>
+    <div class="card-body pt-5">
+        <div class="row">
+            <div class="col-md-8">
+                <h1 class="mt-2">{{ group.name }}</h1>
+                <p class="text-muted">
+                    <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                    <span class="ms-3">
+                        {% if group.is_public %}
+                        <i class="fas fa-globe me-1"></i> 公开群组
+                        {% else %}
+                        <i class="fas fa-lock me-1"></i> 私密群组
+                        {% endif %}
+                    </span>
+                    <span class="ms-3">
+                        <i class="fas fa-calendar-alt me-1"></i> 创建于 {{ group.created_at.strftime('%Y-%m-%d') }}
+                    </span>
+                </p>
+                <p>{{ group.description }}</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group">
+                    {% if current_user.is_authenticated %}
+                        {% if group in current_user.groups %}
+                            {% if current_user.id != group.owner_id %}
+                            <a href="{{ url_for('groups.leave', group_id=group.id) }}" class="btn btn-outline-danger" onclick="return confirm('确定要离开这个群组吗？')">
+                                <i class="fas fa-sign-out-alt me-1"></i> 退出群组
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('groups.invite', group_id=group.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-user-plus me-1"></i> 邀请成员
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('groups.join', group_id=group.id) }}" class="btn btn-success">
+                                <i class="fas fa-plus-circle me-1"></i> 加入群组
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if is_admin %}
+                    <a href="{{ url_for('groups.settings', group_id=group.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-cog me-1"></i> 群组设置
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 群组功能导航 -->
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('groups.view', group_id=group.id) }}">动态</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('groups.members', group_id=group.id) }}">成员</a>
+    </li>
+    <!-- 其他功能标签可以添加在这里 -->
+</ul>
+
+<div class="row">
+    <!-- 左侧内容：帖子列表 -->
+    <div class="col-lg-8">
+        {% if current_user.is_authenticated and group in current_user.groups %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">发布新动态</h5>
+                <a href="{{ url_for('groups.create_post', group_id=group.id) }}" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i> 写帖子
+                </a>
+                <a href="{{ url_for('groups.create_event', group_id=group.id) }}" class="btn btn-outline-primary ms-2">
+                    <i class="fas fa-calendar-plus me-1"></i> 创建活动
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if posts %}
+            {% for post in posts %}
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ url_for('static', filename=post.author.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                        <div>
+                            <a href="{{ url_for('user.view_profile', user_id=post.author.id) }}" class="text-decoration-none">{{ post.author.username }}</a>
+                            {% if post.is_announcement %}
+                            <span class="badge bg-danger ms-2">公告</span>
+                            {% endif %}
+                            <div class="text-muted small">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if post.title %}
+                    <h5 class="card-title">{{ post.title }}</h5>
+                    {% endif %}
+                    <p class="card-text post-content">{{ post.content }}</p>
+                </div>
+                <div class="card-footer bg-white">
+                    <button class="btn btn-sm btn-outline-primary">
+                        <i class="far fa-comment me-1"></i> 评论 ({{ post.comments|length }})
+                    </button>
+                    
+                    {% if current_user.is_authenticated and post.author_id == current_user.id %}
+                    <div class="float-end">
+                        <button class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i> 编辑
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger ms-1">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5 bg-light rounded">
+                <div class="mb-3">
+                    <i class="far fa-newspaper fa-4x text-muted"></i>
+                </div>
+                <h4>暂无动态</h4>
+                {% if current_user.is_authenticated and group in current_user.groups %}
+                <p class="text-muted mb-3">成为第一个发布内容的成员吧！</p>
+                <a href="{{ url_for('groups.create_post', group_id=group.id) }}" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i> 发布第一条动态
+                </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 右侧边栏：即将到来的活动和群组信息 -->
+    <div class="col-lg-4">
+        {% if upcoming_events %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">即将到来的活动</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for event in upcoming_events %}
+                    <li class="list-group-item">
+                        <div class="d-flex">
+                            <div class="event-date me-3">
+                                <div class="event-day">{{ event.start_time.strftime('%d') }}</div>
+                                <div class="event-month">{{ event.start_time.strftime('%b') }}</div>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">{{ event.title }}</h6>
+                                <p class="mb-1 small text-muted">
+                                    <i class="fas fa-clock me-1"></i> {{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}
+                                    <br>
+                                    {% if event.is_online %}
+                                    <i class="fas fa-video me-1"></i> 线上活动
+                                    {% else %}
+                                    <i class="fas fa-map-marker-alt me-1"></i> {{ event.location or '未指定地点' }}
+                                    {% endif %}
+                                </p>
+                                <button class="btn btn-sm btn-outline-primary">查看详情</button>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="#" class="btn btn-sm btn-outline-primary w-100">查看全部活动</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 群组管理员信息 -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">群组管理员</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    <!-- 群主 -->
+                    <li class="list-group-item">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ url_for('static', filename=group.owner.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                            <div>
+                                <div class="mb-1">
+                                    <a href="{{ url_for('user.view_profile', user_id=group.owner.id) }}" class="text-decoration-none">{{ group.owner.username }}</a>
+                                    <span class="badge bg-danger ms-1">群主</span>
+                                </div>
+                                <small class="text-muted">创建者</small>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <!-- 其他管理员 -->
+                    {% for admin in group.get_admin_members() if admin.id != group.owner_id %}
+                    <li class="list-group-item">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ url_for('static', filename=admin.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                            <div>
+                                <div class="mb-1">
+                                    <a href="{{ url_for('user.view_profile', user_id=admin.id) }}" class="text-decoration-none">{{ admin.username }}</a>
+                                    <span class="badge bg-danger ms-1">管理员</span>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

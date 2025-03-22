@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}编辑个人资料 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">编辑个人资料</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('user.edit_profile') }}" enctype="multipart/form-data">
+                    <div class="text-center mb-4">
+                        <img src="{{ url_for('static', filename=current_user.profile_image) }}" alt="{{ current_user.username }}" class="avatar-xl rounded-circle mb-3" id="profile-image-preview">
+                        <div class="mb-3">
+                            <label for="profile_image" class="btn btn-outline-primary">
+                                <i class="fas fa-camera me-1"></i> 更换头像
+                            </label>
+                            <input type="file" id="profile_image" name="profile_image" class="d-none" accept="image/*">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ current_user.username }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">电子邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ current_user.email }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">个人简介</label>
+                        <textarea class="form-control" id="bio" name="bio" rows="4">{{ current_user.bio }}</textarea>
+                        <div class="form-text">简单介绍一下自己，让其他成员更了解你</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('user.view_profile', user_id=current_user.id) }}" class="btn btn-secondary me-md-2">取消</a>
+                        <button type="submit" class="btn btn-primary">保存更改</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 头像预览
+    document.getElementById('profile_image').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                document.getElementById('profile-image-preview').src = e.target.result;
+            }
+            
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+</script>
+{% endblock %}

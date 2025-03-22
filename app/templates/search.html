@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}搜索结果 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">搜索结果：{{ query }}</h1>
+    
+    <!-- 搜索框 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('main.search') }}">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="q" placeholder="搜索群组、用户或活动..." value="{{ query }}">
+                    <button class="btn btn-primary" type="submit">搜索</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 搜索过滤器 -->
+    <div class="mb-4">
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link {% if filter == 'all' %}active{% endif %}" href="{{ url_for('main.search', q=query, filter='all') }}">全部结果</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if filter == 'groups' %}active{% endif %}" href="{{ url_for('main.search', q=query, filter='groups') }}">群组 ({{ groups|length }})</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if filter == 'users' %}active{% endif %}" href="{{ url_for('main.search', q=query, filter='users') }}">用户 ({{ users|length }})</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if filter == 'events' %}active{% endif %}" href="{{ url_for('main.search', q=query, filter='events') }}">活动 ({{ events|length }})</a>
+            </li>
+        </ul>
+    </div>
+    
+    {% if not groups and not users and not events %}
+    <div class="text-center py-5 bg-light rounded">
+        <div class="mb-3">
+            <i class="fas fa-search fa-4x text-muted"></i>
+        </div>
+        <h3>未找到任何结果</h3>
+        <p class="text-muted">请尝试使用不同的关键词或浏览以下推荐内容</p>
+    </div>
+    {% else %}
+    
+    <!-- 群组搜索结果 -->
+    {% if filter in ['all', 'groups'] and groups %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">群组 ({{ groups|length }})</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for group in groups %}
+                <a href="{{ url_for('groups.view', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-md me-3 rounded" alt="{{ group.name }}">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-1">{{ group.name }}</h5>
+                                <span class="badge {% if group.is_public %}bg-primary{% else %}bg-secondary{% endif %}">
+                                    {% if group.is_public %}公开{% else %}私密{% endif %}
+                                </span>
+                            </div>
+                            <p class="mb-1 text-muted small">
+                                <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                                <span class="ms-2"><i class="fas fa-user me-1"></i> {{ group.owner.username }}</span>
+                            </p>
+                            <p class="mb-1">{{ group.description|truncate(100) }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            
+            {% if filter == 'all' and groups|length > 3 %}
+            <div class="card-footer text-center">
+                <a href="{{ url_for('main.search', q=query, filter='groups') }}" class="btn btn-outline-primary btn-sm">查看全部 {{ groups|length }} 个群组</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- 用户搜索结果 -->
+    {% if filter in ['all', 'users'] and users %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">用户 ({{ users|length }})</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for user in users %}
+                <a href="{{ url_for('user.view_profile', user_id=user.id) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ url_for('static', filename=user.profile_image) }}" class="avatar-md me-3 rounded-circle" alt="{{ user.username }}">
+                        <div>
+                            <h5 class="mb-1">{{ user.username }}</h5>
+                            <p class="mb-1 text-muted small">
+                                <i class="fas fa-users me-1"></i> {{ user.groups|length }} 个群组
+                                {% if user.created_groups|length > 0 %}
+                                <span class="ms-2"><i class="fas fa-crown me-1"></i> {{ user.created_groups|length }} 个创建的群组</span>
+                                {% endif %}
+                            </p>
+                            {% if user.bio %}
+                            <p class="mb-1">{{ user.bio|truncate(100) }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            
+            {% if filter == 'all' and users|length > 3 %}
+            <div class="card-footer text-center">
+                <a href="{{ url_for('main.search', q=query, filter='users') }}" class="btn btn-outline-primary btn-sm">查看全部 {{ users|length }} 个用户</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- 活动搜索结果 -->
+    {% if filter in ['all', 'events'] and events %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">活动 ({{ events|length }})</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for event in events %}
+                <a href="{{ url_for('groups.view_event', group_id=event.group.id, event_id=event.id) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex">
+                        <div class="event-date me-3">
+                            <div class="event-day">{{ event.start_time.strftime('%d') }}</div>
+                            <div class="event-month">{{ event.start_time.strftime('%b') }}</div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-1">{{ event.title }}</h5>
+                                <span class="badge {% if event.is_online %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">
+                                    {% if event.is_online %}线上{% else %}线下{% endif %}
+                                </span>
+                            </div>
+                            <p class="mb-1 text-muted small">
+                                <i class="fas fa-users me-1"></i> {{ event.group.name }}
+                                <span class="ms-2"><i class="fas fa-clock me-1"></i> {{ event.start_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                                {% if event.location and not event.is_online %}
+                                <span class="ms-2"><i class="fas fa-map-marker-alt me-1"></i> {{ event.location }}</span>
+                                {% endif %}
+                            </p>
+                            {% if event.description %}
+                            <p class="mb-1">{{ event.description|truncate(100) }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            
+            {% if filter == 'all' and events|length > 3 %}
+            <div class="card-footer text-center">
+                <a href="{{ url_for('main.search', q=query, filter='events') }}" class="btn btn-outline-primary btn-sm">查看全部 {{ events|length }} 个活动</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% endif %}
+</div>
+{% endblock %}

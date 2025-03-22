@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block title %}邀请成员 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">邀请成员加入 {{ group.name }}</h4>
+            </div>
+            <div class="card-body p-4">
+                <!-- 群组信息摘要 -->
+                <div class="d-flex align-items-center mb-4">
+                    <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-md me-3" alt="{{ group.name }}">
+                    <div>
+                        <h5 class="mb-1">{{ group.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                            <span class="ms-2">
+                                {% if group.is_public %}
+                                <i class="fas fa-globe me-1"></i> 公开群组
+                                {% else %}
+                                <i class="fas fa-lock me-1"></i> 私密群组
+                                {% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- 邀请链接 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">通过链接邀请</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">分享以下链接，邀请好友加入群组。链接永不过期，除非重新生成。</p>
+                        
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="invite_link" value="{{ invite_url }}" readonly>
+                            <button class="btn btn-outline-primary" type="button" id="copy_link">
+                                <i class="fas fa-copy me-1"></i> 复制
+                            </button>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <form method="POST" action="{{ url_for('groups.regenerate_invite', group_id=group.id) }}">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" onclick="return confirm('重新生成链接将使现有链接失效，确定继续吗？')">
+                                    <i class="fas fa-sync-alt me-1"></i> 重新生成链接
+                                </button>
+                            </form>
+                            
+                            <div class="btn-group">
+                                <a href="https://wechat.com" target="_blank" class="btn btn-success btn-sm">
+                                    <i class="fab fa-weixin me-1"></i> 分享到微信
+                                </a>
+                                <a href="https://qzone.qq.com" target="_blank" class="btn btn-primary btn-sm">
+                                    <i class="fab fa-qq me-1"></i> 分享到QQ
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 通过邮箱邀请 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">通过邮箱邀请</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('groups.invite_by_email', group_id=group.id) }}">
+                            <div class="mb-3">
+                                <label for="emails" class="form-label">邮箱地址</label>
+                                <textarea class="form-control" id="emails" name="emails" rows="3" placeholder="输入多个邮箱，用逗号、分号或换行分隔"></textarea>
+                                <div class="form-text">我们将向这些邮箱发送邀请链接</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="message" class="form-label">附加消息 (可选)</label>
+                                <textarea class="form-control" id="message" name="message" rows="3" placeholder="输入附加消息..."></textarea>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane me-1"></i> 发送邀请
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- 邀请记录 -->
+                {% if invitations %}
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">最近邀请记录</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>邀请对象</th>
+                                        <th>邀请人</th>
+                                        <th>发送时间</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invite in invitations %}
+                                    <tr>
+                                        <td>{{ invite.email }}</td>
+                                        <td>{{ invite.inviter.username }}</td>
+                                        <td>{{ invite.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            {% if invite.accepted %}
+                                            <span class="badge bg-success">已接受</span>
+                                            {% elif invite.expired %}
+                                            <span class="badge bg-secondary">已过期</span>
+                                            {% else %}
+                                            <span class="badge bg-warning text-dark">待接受</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> 返回群组
+                    </a>
+                    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-primary">
+                        <i class="fas fa-users me-1"></i> 管理成员
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 复制邀请链接
+    document.getElementById('copy_link').addEventListener('click', function() {
+        const inviteLink = document.getElementById('invite_link');
+        inviteLink.select();
+        document.execCommand('copy');
+        
+        // 更改按钮文本提示已复制
+        const copyBtn = this;
+        const originalHTML = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-check me-1"></i> 已复制';
+        copyBtn.classList.remove('btn-outline-primary');
+        copyBtn.classList.add('btn-success');
+        
+        // 2秒后恢复按钮原始状态
+        setTimeout(function() {
+            copyBtn.innerHTML = originalHTML;
+            copyBtn.classList.remove('btn-success');
+            copyBtn.classList.add('btn-outline-primary');
+        }, 2000);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ event.title }} - {{ event.group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 面包屑导航 -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">首页</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('groups.view', group_id=event.group.id) }}">{{ event.group.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">活动详情</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- 活动详情 -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h2 class="card-title mb-0">{{ event.title }}</h2>
+                        {% if current_user.is_authenticated and (current_user.id == event.creator_id or current_user.id == event.group.owner_id) %}
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="eventActions" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="eventActions">
+                                <li><a class="dropdown-item" href="{{ url_for('groups.edit_event', group_id=event.group.id, event_id=event.id) }}"><i class="fas fa-edit me-2"></i>编辑活动</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('groups.cancel_event', group_id=event.group.id, event_id=event.id) }}" onclick="return confirm('确定要取消此活动吗？')"><i class="fas fa-times-circle me-2"></i>取消活动</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{{ url_for('groups.delete_event', group_id=event.group.id, event_id=event.id) }}" onclick="return confirm('确定要删除此活动吗？此操作不可撤销！')"><i class="fas fa-trash-alt me-2"></i>删除活动</a></li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ url_for('static', filename=event.creator.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                        <div>
+                            <a href="{{ url_for('user.view_profile', user_id=event.creator.id) }}" class="text-decoration-none">{{ event.creator.username }}</a>
+                            <div class="text-muted small">{{ event.created_at.strftime('%Y-%m-%d %H:%M') }} 创建</div>
+                        </div>
+                    </div>
+
+                    <!-- 活动状态徽章 -->
+                    <div class="mb-3">
+                        {% if event.is_canceled %}
+                        <span class="badge bg-danger">已取消</span>
+                        {% elif event.end_time < now %}
+                        <span class="badge bg-secondary">已结束</span>
+                        {% elif event.start_time < now %}
+                        <span class="badge bg-success">进行中</span>
+                        {% else %}
+                        <span class="badge bg-primary">即将开始</span>
+                        {% endif %}
+                        
+                        {% if event.is_online %}
+                        <span class="badge bg-info text-dark">线上活动</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark">线下活动</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- 活动时间地点 -->
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="card-subtitle mb-2"><i class="fas fa-calendar-alt me-2"></i>活动时间</h5>
+                                    <p class="mb-1">开始：{{ event.start_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                                    <p>结束：{{ event.end_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="card-subtitle mb-2">
+                                        {% if event.is_online %}
+                                        <i class="fas fa-video me-2"></i>线上地址
+                                        {% else %}
+                                        <i class="fas fa-map-marker-alt me-2"></i>活动地点
+                                        {% endif %}
+                                    </h5>
+                                    {% if event.is_online %}
+                                        {% if event.online_url %}
+                                        <a href="{{ event.online_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-external-link-alt me-1"></i> 点击加入线上活动
+                                        </a>
+                                        {% else %}
+                                        <p class="text-muted">活动开始前组织者将提供线上地址</p>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if event.location %}
+                                        <p>{{ event.location }}</p>
+                                        {% else %}
+                                        <p class="text-muted">未指定地点</p>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 活动详情描述 -->
+                    <div class="mb-4">
+                        <h5>活动详情</h5>
+                        {% if event.description %}
+                        <div class="event-description">
+                            {{ event.description|safe }}
+                        </div>
+                        {% else %}
+                        <p class="text-muted">暂无详细描述</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- 参与按钮 -->
+                    {% if current_user.is_authenticated and not event.is_canceled and event.end_time > now %}
+                    <div class="card-footer bg-white">
+                        {% if current_user not in event.participants %}
+                            {% if event.max_participants > 0 and event.participants|length >= event.max_participants %}
+                            <button class="btn btn-secondary w-100" disabled>
+                                <i class="fas fa-users-slash me-1"></i> 名额已满 ({{ event.participants|length }}/{{ event.max_participants }})
+                            </button>
+                            {% else %}
+                            <form method="POST" action="{{ url_for('groups.join_event', group_id=event.group.id, event_id=event.id) }}">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-calendar-check me-1"></i> 参加活动
+                                    {% if event.max_participants > 0 %}
+                                    ({{ event.participants|length }}/{{ event.max_participants }})
+                                    {% endif %}
+                                </button>
+                            </form>
+                            {% endif %}
+                        {% else %}
+                            <form method="POST" action="{{ url_for('groups.leave_event', group_id=event.group.id, event_id=event.id) }}">
+                                <button type="submit" class="btn btn-outline-danger w-100">
+                                    <i class="fas fa-calendar-times me-1"></i> 取消参加
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 活动讨论区 -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">活动讨论</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_user.is_authenticated and current_user in event.group.members %}
+                    <form method="POST" action="{{ url_for('groups.comment_event', group_id=event.group.id, event_id=event.id) }}" class="mb-4">
+                        <div class="mb-3">
+                            <textarea class="form-control" id="comment" name="content" rows="3" placeholder="发表评论..."></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i> 发送
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
+
+                    {% if event_comments %}
+                    <div class="comments-section">
+                        {% for comment in event_comments %}
+                        <div class="comment d-flex mb-3">
+                            <img src="{{ url_for('static', filename=comment.author.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                            <div class="flex-grow-1">
+                                <div class="comment-header d-flex justify-content-between">
+                                    <div>
+                                        <a href="{{ url_for('user.view_profile', user_id=comment.author.id) }}" class="fw-bold text-decoration-none">{{ comment.author.username }}</a>
+                                        <small class="text-muted ms-2">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    </div>
+                                    {% if current_user.is_authenticated and (current_user.id == comment.author_id or current_user.id == event.group.owner_id) %}
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm text-muted p-0" type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item text-danger" href="{{ url_for('groups.delete_event_comment', group_id=event.group.id, event_id=event.id, comment_id=comment.id) }}" onclick="return confirm('确定要删除此评论吗？')"><i class="fas fa-trash-alt me-2"></i>删除</a></li>
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="comment-body mt-1">
+                                    {{ comment.content }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">暂无讨论，发表第一条评论吧</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 侧边栏：参与者和相关信息 -->
+        <div class="col-lg-4">
+            <!-- 参与者列表 -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">参与者 ({{ event.participants|length }}{% if event.max_participants > 0 %}/{{ event.max_participants }}{% endif %})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        <!-- 活动创建者 -->
+                        <li class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ url_for('static', filename=event.creator.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                                <div>
+                                    <a href="{{ url_for('user.view_profile', user_id=event.creator.id) }}" class="text-decoration-none">{{ event.creator.username }}</a>
+                                    <span class="badge bg-danger ms-1">组织者</span>
+                                </div>
+                            </div>
+                        </li>
+
+                        <!-- 其他参与者 -->
+                        {% for participant in event.participants if participant.id != event.creator_id %}
+                        <li class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ url_for('static', filename=participant.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                                <div>
+                                    <a href="{{ url_for('user.view_profile', user_id=participant.id) }}" class="text-decoration-none">{{ participant.username }}</a>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+
+                        {% if event.participants|length == 0 %}
+                        <li class="list-group-item text-center py-4">
+                            <p class="text-muted mb-0">暂无参与者</p>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 群组信息 -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">所属群组</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ url_for('static', filename=event.group.avatar) }}" class="avatar-md rounded me-3">
+                        <div>
+                            <h5 class="mb-1">{{ event.group.name }}</h5>
+                            <p class="mb-0 small text-muted">
+                                <i class="fas fa-users me-1"></i> {{ event.group.get_members_count() }} 成员
+                            </p>
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <a href="{{ url_for('groups.view', group_id=event.group.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-1"></i> 返回群组
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 其他即将举行的活动 -->
+            {% if upcoming_events %}
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">其他即将举行的活动</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for upcoming_event in upcoming_events if upcoming_event.id != event.id %}
+                        <li class="list-group-item">
+                            <div class="d-flex">
+                                <div class="event-date me-3">
+                                    <div class="event-day">{{ upcoming_event.start_time.strftime('%d') }}</div>
+                                    <div class="event-month">{{ upcoming_event.start_time.strftime('%b') }}</div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1">{{ upcoming_event.title }}</h6>
+                                    <p class="mb-1 small text-muted">
+                                        <i class="fas fa-clock me-1"></i> {{ upcoming_event.start_time.strftime('%H:%M') }}
+                                    </p>
+                                    <a href="{{ url_for('groups.view_event', group_id=upcoming_event.group.id, event_id=upcoming_event.id) }}" class="btn btn-sm btn-outline-primary">查看详情</a>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

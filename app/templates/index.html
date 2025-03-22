@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}首页 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="jumbotron bg-light p-5 rounded">
+            <h1 class="display-4">欢迎使用群组管理系统</h1>
+            <p class="lead">一个方便易用的群组管理平台，轻松创建、管理和参与各类群组活动</p>
+            <hr class="my-4">
+            <p>创建您自己的群组，或者加入感兴趣的群组，与志同道合的伙伴一起交流、分享和组织活动。</p>
+            {% if not current_user.is_authenticated %}
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg me-md-2">立即注册</a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-lg">登录</a>
+            </div>
+            {% else %}
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('groups.create') }}" class="btn btn-primary btn-lg me-md-2">创建群组</a>
+                <a href="{{ url_for('groups.index') }}" class="btn btn-outline-primary btn-lg">我的群组</a>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if current_user.is_authenticated and recent_posts %}
+        <div class="mt-5">
+            <h2 class="mb-4">最新动态</h2>
+            {% for post in recent_posts %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ url_for('static', filename=post.author.profile_image) }}" class="avatar-sm rounded-circle me-2">
+                        <div>
+                            <strong>{{ post.author.username }}</strong> 在 
+                            <a href="{{ url_for('groups.view', group_id=post.group_id) }}">{{ post.group.name }}</a> 发布
+                            <small class="text-muted ms-2">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% if post.title %}
+                    <h5 class="card-title">{{ post.title }}</h5>
+                    {% endif %}
+                    <p class="card-text post-content">{{ post.content|truncate(200) }}</p>
+                    <a href="{{ url_for('groups.view', group_id=post.group_id) }}" class="btn btn-sm btn-outline-primary">查看详情</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        {% if current_user.is_authenticated and upcoming_events %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">即将到来的活动</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for event in upcoming_events %}
+                    <li class="list-group-item">
+                        <div class="d-flex">
+                            <div class="event-date me-3">
+                                <div class="event-day">{{ event.start_time.strftime('%d') }}</div>
+                                <div class="event-month">{{ event.start_time.strftime('%b') }}</div>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">{{ event.title }}</h6>
+                                <p class="mb-1 small">
+                                    <i class="fas fa-users me-1"></i> {{ event.group.name }}<br>
+                                    <i class="fas fa-clock me-1"></i> {{ event.start_time.strftime('%H:%M') }}
+                                </p>
+                                <a href="{{ url_for('groups.view', group_id=event.group_id) }}" class="btn btn-sm btn-outline-primary">详情</a>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">推荐群组</h5>
+            </div>
+            <div class="card-body">
+                {% if public_groups %}
+                <div class="row">
+                    {% for group in public_groups %}
+                    <div class="col-md-6 col-lg-12 mb-3">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-md rounded me-3">
+                            <div>
+                                <h6 class="mb-1">{{ group.name }}</h6>
+                                <p class="mb-1 small text-muted">
+                                    <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                                </p>
+                                <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-sm btn-outline-primary">查看</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center mb-0">暂无推荐群组</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

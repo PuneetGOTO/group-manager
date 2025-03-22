@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}发布帖子 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">在 {{ group.name }} 中发布帖子</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('groups.create_post', group_id=group.id) }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">标题</label>
+                        <input type="text" class="form-control" id="title" name="title">
+                        <div class="form-text">标题可选，不填则显示为普通动态</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="content" class="form-label">内容 <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="content" name="content" rows="8" required></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-secondary me-md-2">取消</a>
+                        <button type="submit" class="btn btn-primary">发布</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

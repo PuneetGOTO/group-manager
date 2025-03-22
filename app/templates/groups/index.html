@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}我的群组 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>我的群组</h1>
+    <a href="{{ url_for('groups.create') }}" class="btn btn-primary">
+        <i class="fas fa-plus-circle me-1"></i> 创建新群组
+    </a>
+</div>
+
+<!-- 我创建的群组 -->
+{% if owned_groups %}
+<h3 class="mb-3">我创建的群组</h3>
+<div class="row">
+    {% for group in owned_groups %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card group-card shadow-sm h-100">
+            <img src="{{ url_for('static', filename=group.banner) }}" class="card-img-top" alt="{{ group.name }}">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-md me-3 rounded" alt="{{ group.name }}">
+                    <h5 class="card-title mb-0">{{ group.name }}</h5>
+                </div>
+                <p class="card-text text-muted small">
+                    <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                    <span class="ms-2">
+                        {% if group.is_public %}
+                        <i class="fas fa-globe me-1"></i> 公开
+                        {% else %}
+                        <i class="fas fa-lock me-1"></i> 私密
+                        {% endif %}
+                    </span>
+                </p>
+                <p class="card-text">{{ group.description|truncate(100) }}</p>
+            </div>
+            <div class="card-footer bg-white">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-sm btn-outline-primary">进入群组</a>
+                    <a href="{{ url_for('groups.settings', group_id=group.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-cog"></i> 设置
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 我加入的群组 -->
+{% if user_groups %}
+<h3 class="mb-3 mt-4">我加入的群组</h3>
+<div class="row">
+    {% for group in user_groups if group not in owned_groups %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card group-card shadow-sm h-100">
+            <img src="{{ url_for('static', filename=group.banner) }}" class="card-img-top" alt="{{ group.name }}">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-md me-3 rounded" alt="{{ group.name }}">
+                    <h5 class="card-title mb-0">{{ group.name }}</h5>
+                </div>
+                <p class="card-text text-muted small">
+                    <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                    <span class="ms-2">
+                        {% if group.is_public %}
+                        <i class="fas fa-globe me-1"></i> 公开
+                        {% else %}
+                        <i class="fas fa-lock me-1"></i> 私密
+                        {% endif %}
+                    </span>
+                </p>
+                <p class="card-text">{{ group.description|truncate(100) }}</p>
+            </div>
+            <div class="card-footer bg-white">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-sm btn-outline-primary">进入群组</a>
+                    <a href="{{ url_for('groups.leave', group_id=group.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要离开这个群组吗？')">
+                        <i class="fas fa-sign-out-alt"></i> 退出
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 可加入的公开群组 -->
+{% if public_groups %}
+<h3 class="mb-3 mt-4">推荐群组</h3>
+<div class="row">
+    {% for group in public_groups if group not in user_groups %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card group-card shadow-sm h-100">
+            <img src="{{ url_for('static', filename=group.banner) }}" class="card-img-top" alt="{{ group.name }}">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-md me-3 rounded" alt="{{ group.name }}">
+                    <h5 class="card-title mb-0">{{ group.name }}</h5>
+                </div>
+                <p class="card-text text-muted small">
+                    <i class="fas fa-users me-1"></i> {{ group.get_members_count() }} 成员
+                </p>
+                <p class="card-text">{{ group.description|truncate(100) }}</p>
+            </div>
+            <div class="card-footer bg-white">
+                <a href="{{ url_for('groups.join', group_id=group.id) }}" class="btn btn-sm btn-success w-100">
+                    <i class="fas fa-plus-circle me-1"></i> 加入群组
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not owned_groups and not user_groups %}
+<div class="text-center py-5">
+    <div class="mb-4">
+        <i class="fas fa-users fa-5x text-muted"></i>
+    </div>
+    <h3>您还没有加入任何群组</h3>
+    <p class="text-muted mb-4">创建一个新群组或加入已有群组开始互动</p>
+    <a href="{{ url_for('groups.create') }}" class="btn btn-primary btn-lg">
+        <i class="fas fa-plus-circle me-1"></i> 创建新群组
+    </a>
+</div>
+{% endif %}
+{% endblock %}

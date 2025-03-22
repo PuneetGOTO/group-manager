@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}创建活动 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">在 {{ group.name }} 中创建活动</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('groups.create_event', group_id=group.id) }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">活动标题 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">活动描述</label>
+                        <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label">开始日期 <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_time" class="form-label">开始时间 <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="start_time" name="start_time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="end_date" class="form-label">结束日期 <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="end_time" class="form-label">结束时间 <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="end_time" name="end_time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_online" name="is_online">
+                        <label class="form-check-label" for="is_online">这是一个线上活动</label>
+                    </div>
+                    
+                    <div class="mb-3 online-field" style="display: none;">
+                        <label for="online_url" class="form-label">线上活动链接</label>
+                        <input type="url" class="form-control" id="online_url" name="online_url" placeholder="例如：Zoom会议链接、直播地址等">
+                    </div>
+                    
+                    <div class="mb-3 offline-field">
+                        <label for="location" class="form-label">活动地点</label>
+                        <input type="text" class="form-control" id="location" name="location">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="max_participants" class="form-label">人数限制</label>
+                        <input type="number" class="form-control" id="max_participants" name="max_participants" min="0" value="0">
+                        <div class="form-text">设置为0表示不限制人数</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-secondary me-md-2">取消</a>
+                        <button type="submit" class="btn btn-primary">创建活动</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 根据是否为线上活动切换表单字段
+    document.getElementById('is_online').addEventListener('change', function() {
+        const onlineFields = document.querySelectorAll('.online-field');
+        const offlineFields = document.querySelectorAll('.offline-field');
+        
+        if (this.checked) {
+            onlineFields.forEach(field => field.style.display = 'block');
+            offlineFields.forEach(field => field.style.display = 'none');
+        } else {
+            onlineFields.forEach(field => field.style.display = 'none');
+            offlineFields.forEach(field => field.style.display = 'block');
+        }
+    });
+    
+    // 设置默认日期为今天
+    const today = new Date().toISOString().substring(0, 10);
+    document.getElementById('start_date').value = today;
+    document.getElementById('end_date').value = today;
+</script>
+{% endblock %}
