@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}通知 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- 用户侧边栏 -->
+            <div class="card mb-4">
+                <div class="card-header">个人中心</div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('user.profile') }}" class="list-group-item list-group-item-action">个人资料</a>
+                    <a href="{{ url_for('user.dashboard') }}" class="list-group-item list-group-item-action">我的面板</a>
+                    <a href="{{ url_for('user.notifications') }}" class="list-group-item list-group-item-action active">我的通知</a>
+                    <a href="{{ url_for('user.settings') }}" class="list-group-item list-group-item-action">账号设置</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">我的通知</h5>
+                    <button class="btn btn-sm btn-outline-secondary">全部标为已读</button>
+                </div>
+                <div class="card-body">
+                    <!-- 如果没有通知则显示提示信息 -->
+                    <div class="text-center py-5">
+                        <i class="fas fa-bell fa-3x text-muted mb-3"></i>
+                        <h4>暂无通知</h4>
+                        <p class="text-muted">您目前没有任何未读通知</p>
+                    </div>
+                    
+                    <!-- 通知列表（实际使用时可以取消注释并填充实际数据） -->
+                    <!--
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">您已被邀请加入群组</h5>
+                                <small>3 天前</small>
+                            </div>
+                            <p class="mb-1">用户 [用户名] 邀请您加入 [群组名] 群组。</p>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-primary">接受</button>
+                                <button class="btn btn-sm btn-secondary">拒绝</button>
+                            </div>
+                        </a>
+                        
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">群组活动提醒</h5>
+                                <small>1 周前</small>
+                            </div>
+                            <p class="mb-1">[群组名] 将在明天举行活动 [活动名]，请准时参加。</p>
+                        </a>
+                    </div>
+                    -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
