@@ -27,7 +27,7 @@ class DiscordClient:
         # 参考: https://discord.com/developers/docs/topics/oauth2
         if use_login_redirect:
             # 构建通过登录页面的OAuth流程（类似Dyno的方式）
-            scope = 'email identify guilds guilds.channels.read bot applications.entitlements activities.invites.write'
+            scope = 'identify email guilds bot'
             # 先创建基本的授权URL
             auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
             
@@ -42,7 +42,7 @@ class DiscordClient:
             return full_auth_url
         else:
             # 使用标准的官方Discord授权URL（推荐方式）
-            scope = 'email identify guilds guilds.channels.read bot applications.entitlements activities.invites.write'
+            scope = 'identify email guilds bot'
             auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
             
             # 添加重定向URI (需要URL编码)
@@ -65,7 +65,7 @@ class DiscordClient:
             'grant_type': 'authorization_code',
             'code': code,
             'redirect_uri': DISCORD_REDIRECT_URI,
-            'scope': ' '.join(['identify', 'email', 'guilds', 'guilds.channels.read', 'bot', 'applications.entitlements', 'activities.invites.write'])
+            'scope': 'identify email guilds bot'
         }
         
         headers = {

@@ -11,15 +11,12 @@ DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN', '')
 # 826484758代表广泛的权限，包括管理服务器、角色、频道等
 DISCORD_BOT_PERMISSIONS = "826484758"
 
-# OAuth授权范围
+# OAuth授权范围 - 使用最基本且稳定的作用域
 DISCORD_SCOPES = [
     'identify',                # 获取用户信息
     'email',                   # 获取用户邮箱
     'guilds',                  # 获取用户所在的服务器列表
-    'guilds.channels.read',    # 读取服务器频道信息
-    'bot',                     # 添加机器人到服务器
-    'applications.entitlements', # 应用程序授权
-    'activities.invites.write'   # 活动邀请写入
+    'bot'                      # 添加机器人到服务器
 ]
 
 # Discord API端点
