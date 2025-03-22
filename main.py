@@ -1,6 +1,7 @@
-from app import create_app
+from app import create_app, db
 import logging
 import sys
+import os
 
 # 配置日志
 logging.basicConfig(
@@ -11,6 +12,15 @@ logging.basicConfig(
 
 # 创建应用实例
 app = create_app()
+
+# 初始化数据库
+with app.app_context():
+    app.logger.info("正在初始化数据库...")
+    try:
+        db.create_all()
+        app.logger.info("数据库表创建成功")
+    except Exception as e:
+        app.logger.error(f"数据库初始化失败: {str(e)}", exc_info=True)
 
 # 在生产环境中捕获并记录错误
 @app.errorhandler(500)
