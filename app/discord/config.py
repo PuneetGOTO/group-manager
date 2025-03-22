@@ -7,13 +7,19 @@ DISCORD_CLIENT_SECRET = os.getenv('DISCORD_CLIENT_SECRET', '')
 DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI', 'https://web-production-a67c.up.railway.app/discord/callback')
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN', '')
 
+# 机器人权限设置
+# 826484758代表广泛的权限，包括管理服务器、角色、频道等
+DISCORD_BOT_PERMISSIONS = "826484758"
+
 # OAuth授权范围
 DISCORD_SCOPES = [
     'identify',                # 获取用户信息
     'email',                   # 获取用户邮箱
     'guilds',                  # 获取用户所在的服务器列表
-    'guilds.members.read',     # 读取服务器成员信息
-    'bot'                      # 添加机器人到服务器
+    'guilds.channels.read',    # 读取服务器频道信息
+    'bot',                     # 添加机器人到服务器
+    'applications.entitlements', # 应用程序授权
+    'activities.invites.write'   # 活动邀请写入
 ]
 
 # Discord API端点

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from .config import (
     DISCORD_API_ENDPOINT, DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI,
-    DISCORD_BOT_TOKEN
+    DISCORD_BOT_TOKEN, DISCORD_BOT_PERMISSIONS, DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_TOKEN_URL
 )
 
 class DiscordClient:
@@ -15,20 +15,19 @@ class DiscordClient:
     @staticmethod
     def get_auth_url(state=None, use_login_redirect=False):
         """获取Discord OAuth授权URL"""
-        from .config import DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_CLIENT_ID
+        from .config import DISCORD_AUTHORIZATION_BASE_URL, DISCORD_SCOPES, DISCORD_CLIENT_ID, DISCORD_BOT_PERMISSIONS
         
         # 确保client_id是字符串格式
         client_id = str(DISCORD_CLIENT_ID) if DISCORD_CLIENT_ID else '1353003948948066395'
         
-        # 为机器人设置必要的权限
-        # 7272262672 权限包括: 查看频道、管理角色、管理频道、踢出成员、禁言成员等群组管理必要权限
-        permissions = "7272262672"
+        # 使用配置的权限值
+        permissions = DISCORD_BOT_PERMISSIONS if DISCORD_BOT_PERMISSIONS else "826484758"
         
         # 使用官方的Discord OAuth2 URL格式
         # 参考: https://discord.com/developers/docs/topics/oauth2
         if use_login_redirect:
             # 构建通过登录页面的OAuth流程（类似Dyno的方式）
-            scope = 'bot identify guilds email'
+            scope = 'email identify guilds guilds.channels.read bot applications.entitlements activities.invites.write'
             # 先创建基本的授权URL
             auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
             
@@ -43,7 +42,7 @@ class DiscordClient:
             return full_auth_url
         else:
             # 使用标准的官方Discord授权URL（推荐方式）
-            scope = 'bot identify guilds email'
+            scope = 'email identify guilds guilds.channels.read bot applications.entitlements activities.invites.write'
             auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
             
             # 添加重定向URI (需要URL编码)
@@ -66,7 +65,7 @@ class DiscordClient:
             'grant_type': 'authorization_code',
             'code': code,
             'redirect_uri': DISCORD_REDIRECT_URI,
-            'scope': ' '.join(['identify', 'email', 'guilds', 'guilds.members.read', 'bot'])
+            'scope': ' '.join(['identify', 'email', 'guilds', 'guilds.channels.read', 'bot', 'applications.entitlements', 'activities.invites.write'])
         }
         
         headers = {
