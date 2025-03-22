@@ -3,7 +3,6 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import uuid
-from app.models.group import group_members
 
 @login_manager.user_loader
 def load_user(user_id):

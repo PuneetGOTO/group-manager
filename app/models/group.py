@@ -19,6 +19,7 @@ class Group(db.Model):
     # 关系
     posts = db.relationship('Post', backref='group', lazy=True, cascade="all, delete-orphan")
     events = db.relationship('Event', backref='group', lazy=True, cascade="all, delete-orphan")
+    members = db.relationship('User', secondary='group_members', backref=db.backref('groups', lazy='dynamic'), lazy='dynamic')
     
     def __init__(self, name, owner_id, description=None, is_public=True, **kwargs):
         self.name = name
@@ -41,12 +42,19 @@ class Group(db.Model):
     
     def get_admin_members(self):
         """获取群组管理员"""
-        from app.models.user import group_members
-        admins_query = db.session.query(group_members).filter_by(
-            group_id=self.id, role='admin').all()
-        admin_ids = [admin.user_id for admin in admins_query]
-        from app.models.user import User
-        return User.query.filter(User.id.in_(admin_ids)).all()
+        # 使用字符串引用避免循环导入
+        admin_members = []
+        admins_query = db.session.execute(
+            "SELECT user_id FROM group_members WHERE group_id = :group_id AND role = 'admin'",
+            {"group_id": self.id}
+        ).fetchall()
+        
+        if admins_query:
+            from app.models.user import User
+            admin_ids = [admin[0] for admin in admins_query]
+            admin_members = User.query.filter(User.id.in_(admin_ids)).all()
+        
+        return admin_members
     
     def __repr__(self):
         return f'<Group {self.name}>'
