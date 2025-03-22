@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}服务器错误{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2 text-center">
+            <h1 class="display-4">500</h1>
+            <h2 class="mb-4">服务器错误</h2>
+            <p class="lead">抱歉，服务器遇到了问题。我们的技术团队已收到通知并正在解决。</p>
+            <div class="mt-4">
+                <a href="{{ url_for('main.index') }}" class="btn btn-primary">返回首页</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

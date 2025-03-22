@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}页面未找到{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2 text-center">
+            <h1 class="display-4">404</h1>
+            <h2 class="mb-4">页面未找到</h2>
+            <p class="lead">您请求的页面不存在。可能是URL输入错误或页面已被移动。</p>
+            <div class="mt-4">
+                <a href="{{ url_for('main.index') }}" class="btn btn-primary">返回首页</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
