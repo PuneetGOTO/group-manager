@@ -1,6 +1,7 @@
 """Discord API客户端"""
 import requests
 import json
+import urllib.parse
 from datetime import datetime, timedelta
 from .config import (
     DISCORD_API_ENDPOINT, DISCORD_CLIENT_ID,
@@ -23,25 +24,36 @@ class DiscordClient:
         # 7272262672 权限包括: 查看频道、管理角色、管理频道、踢出成员、禁言成员等群组管理必要权限
         permissions = "7272262672"
         
+        # 使用官方的Discord OAuth2 URL格式
+        # 参考: https://discord.com/developers/docs/topics/oauth2
         if use_login_redirect:
             # 构建通过登录页面的OAuth流程（类似Dyno的方式）
-            # 注意：此方式会先重定向到Discord登录页，然后再到授权页
-            scope = 'identify guilds email applications.commands.permissions.update bot'
-            base_auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_uri={DISCORD_REDIRECT_URI}&scope={scope}&response_type=code&permissions={permissions}"
-            if state:
-                base_auth_url += f"&state={state}"
-            # 将整个URL编码并通过登录页面重定向
-            import urllib.parse
-            encoded_auth_url = urllib.parse.quote(base_auth_url)
-            auth_url = f"https://discord.com/login?redirect_to={encoded_auth_url}"
-        else:
-            # 使用标准的直接授权URL（推荐方式）
             scope = 'bot identify guilds email'
-            auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={permissions}&scope={scope}&response_type=code&redirect_uri={DISCORD_REDIRECT_URI}"
+            # 先创建基本的授权URL
+            auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
+            
+            # 添加重定向URI和状态参数
+            auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
             if state:
                 auth_url += f"&state={state}"
-        
-        return auth_url
+                
+            # 将整个URL编码并通过登录页面重定向
+            encoded_auth_url = urllib.parse.quote(auth_url)
+            full_auth_url = f"https://discord.com/login?redirect_to={encoded_auth_url}"
+            return full_auth_url
+        else:
+            # 使用标准的官方Discord授权URL（推荐方式）
+            scope = 'bot identify guilds email'
+            auth_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope={scope}&permissions={permissions}&response_type=code"
+            
+            # 添加重定向URI (需要URL编码)
+            auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
+            
+            # 添加状态参数
+            if state:
+                auth_url += f"&state={state}"
+                
+            return auth_url
     
     @staticmethod
     def exchange_code(code):
