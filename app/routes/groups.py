@@ -473,3 +473,104 @@ def update_settings(group_id):
     
     db.session.commit()
     return redirect(url_for('groups.settings', group_id=group_id))
+
+@groups_bp.route('/<int:group_id>/remove_member/<int:user_id>', methods=['GET'])
+@login_required
+def remove_member(group_id, user_id):
+    """将成员移出群组"""
+    group = Group.query.get_or_404(group_id)
+    user = User.query.get_or_404(user_id)
+    
+    # 确保当前用户有权限移除成员（群主或管理员）
+    user_role = current_user.get_role_in_group(group_id)
+    
+    # 检查移除权限：
+    # 1. 群主可以移除任何人（除自己）
+    # 2. 管理员只能移除普通成员，不能移除群主或其他管理员
+    if not current_user.is_authenticated or not user_role:
+        flash('您没有权限执行此操作', 'danger')
+        return redirect(url_for('groups.members', group_id=group_id))
+    
+    if group.owner_id == user.id:
+        flash('不能移除群主', 'danger')
+        return redirect(url_for('groups.members', group_id=group_id))
+    
+    if user_role != 'admin' and group.owner_id != current_user.id:
+        flash('只有群主和管理员可以移除成员', 'danger')
+        return redirect(url_for('groups.members', group_id=group_id))
+    
+    # 管理员不能移除其他管理员
+    if user_role == 'admin' and current_user.id != group.owner_id:
+        user_to_remove_role = user.get_role_in_group(group_id)
+        if user_to_remove_role == 'admin':
+            flash('管理员不能移除其他管理员', 'danger')
+            return redirect(url_for('groups.members', group_id=group_id))
+    
+    # 从群组中移除用户
+    stmt = group_members.delete().where(
+        (group_members.c.user_id == user.id) & 
+        (group_members.c.group_id == group.id)
+    )
+    db.session.execute(stmt)
+    db.session.commit()
+    
+    flash(f'已将用户 {user.username} 移出群组', 'success')
+    return redirect(url_for('groups.members', group_id=group_id))
+
+@groups_bp.route('/<int:group_id>/make_admin/<int:user_id>', methods=['GET'])
+@login_required
+def make_admin(group_id, user_id):
+    """将成员设为管理员"""
+    group = Group.query.get_or_404(group_id)
+    user = User.query.get_or_404(user_id)
+    
+    # 只有群主可以设置管理员
+    if current_user.id != group.owner_id:
+        flash('只有群主可以设置管理员', 'danger')
+        return redirect(url_for('groups.members', group_id=group_id))
+    
+    # 不能重复设置管理员
+    user_role = user.get_role_in_group(group_id)
+    if user_role == 'admin':
+        flash('该用户已经是管理员', 'warning')
+        return redirect(url_for('groups.members', group_id=group_id))
+    
+    # 更新用户角色为管理员
+    stmt = group_members.update().where(
+        (group_members.c.user_id == user.id) & 
+        (group_members.c.group_id == group.id)
+    ).values(role='admin')
+    db.session.execute(stmt)
+    db.session.commit()
+    
+    flash(f'已将用户 {user.username} 设为管理员', 'success')
+    return redirect(url_for('groups.members', group_id=group_id))
+
+@groups_bp.route('/<int:group_id>/remove_admin/<int:user_id>', methods=['GET'])
+@login_required
+def remove_admin(group_id, user_id):
+    """取消管理员权限"""
+    group = Group.query.get_or_404(group_id)
+    user = User.query.get_or_404(user_id)
+    
+    # 只有群主可以取消管理员权限
+    if current_user.id != group.owner_id:
+        flash('只有群主可以取消管理员权限', 'danger')
+        return redirect(url_for('groups.members', group_id=group_id))
+    
+    # 检查用户是否为管理员
+    user_role = user.get_role_in_group(group_id)
+    if user_role != 'admin':
+        flash('该用户不是管理员', 'warning')
+        return redirect(url_for('groups.members', group_id=group_id))
+    
+    # 更新用户角色为普通成员
+    stmt = group_members.update().where(
+        (group_members.c.user_id == user.id) & 
+        (group_members.c.group_id == group.id)
+    ).values(role='member')
+    db.session.execute(stmt)
+    db.session.commit()
+    
+    flash(f'已取消用户 {user.username} 的管理员权限', 'success')
+    return redirect(url_for('groups.members', group_id=group_id))
