@@ -80,6 +80,13 @@
     <li class="nav-item">
         <a class="nav-link" href="{{ url_for('groups.members', group_id=group.id) }}">成员</a>
     </li>
+    {% if group.discord_id %}
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('groups.roles', group_id=group.id) }}">
+            <i class="bi bi-shield"></i> Discord身份组
+        </a>
+    </li>
+    {% endif %}
     <!-- 其他功能标签可以添加在这里 -->
 </ul>
 
