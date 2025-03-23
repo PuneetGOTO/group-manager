@@ -759,3 +759,211 @@ def remove_admin(group_id, user_id):
     
     flash(f'已取消用户 {user.username} 的管理员权限', 'success')
     return redirect(url_for('groups.members', group_id=group_id))
+
+@groups_bp.route('/<int:group_id>/roles')
+@login_required
+def roles(group_id):
+    """群组身份组管理"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查是否登录和群组成员权限
+    if not current_user.is_authenticated or (not group.is_public and group not in current_user.groups):
+        flash('您没有查看这个群组的权限', 'warning')
+        return redirect(url_for('groups.list'))
+    
+    # 判断当前用户是否为管理员
+    is_admin = current_user.is_authenticated and (
+        current_user.id == group.owner_id or 
+        current_user.get_role_in_group(group.id) == 'admin'
+    )
+    
+    # 如果不是管理员，不允许访问
+    if not is_admin:
+        flash('只有群组管理员可以管理身份组', 'warning')
+        return redirect(url_for('groups.members', group_id=group.id))
+    
+    # 统计各类角色成员数量
+    admin_count = db.session.query(func.count()).select_from(group_members).where(
+        (group_members.c.group_id == group.id) & 
+        (group_members.c.role == 'admin')
+    ).scalar()
+    
+    member_count = db.session.query(func.count()).select_from(group_members).where(
+        (group_members.c.group_id == group.id) & 
+        (group_members.c.role == 'member')
+    ).scalar()
+    
+    discord_roles = {}
+    has_bot_permission = False
+    
+    # 如果是Discord群组，获取角色信息
+    if group.discord_id:
+        try:
+            # 导入Discord客户端
+            from app.routes.discord import DiscordClient
+            
+            # 获取当前用户的Discord访问令牌
+            token_info = None
+            if current_user.is_authenticated and current_user.discord_id:
+                token_info = current_user.discord_token_info
+            
+            # 使用Bot令牌或用户令牌获取角色信息
+            access_token = token_info.get('access_token') if token_info else None
+            roles_map = DiscordClient.get_guild_roles(access_token, group.discord_id)
+            
+            # 检查是否有机器人权限
+            has_bot_permission = DiscordClient.check_bot_permissions(group.discord_id)
+            
+            # 统计每个角色的成员数量
+            role_member_counts = {}
+            for member in group.user_members:
+                member_roles = member.get_discord_roles(group.id)
+                for role_id in member_roles:
+                    if role_id in role_member_counts:
+                        role_member_counts[role_id] += 1
+                    else:
+                        role_member_counts[role_id] = 1
+            
+            # 创建角色列表
+            for role_id, role_data in roles_map.items():
+                # 解析权限值
+                permissions = role_data.get('permissions', 0)
+                if isinstance(permissions, str):
+                    try:
+                        permissions = int(permissions)
+                    except (ValueError, TypeError):
+                        permissions = 0
+                
+                # 存储角色信息
+                discord_roles[role_id] = {
+                    'name': role_data.get('name', f'未知角色({role_id})'),
+                    'color': f"#{role_data.get('color', 0):06x}" if role_data.get('color', 0) > 0 else None,
+                    'permissions': permissions,
+                    'member_count': role_member_counts.get(role_id, 0)
+                }
+            
+            # 按照成员数量从高到低排序
+            discord_roles = dict(sorted(discord_roles.items(), 
+                                       key=lambda x: (x[1]['member_count'], x[1]['name']), 
+                                       reverse=True))
+                
+        except Exception as e:
+            current_app.logger.error(f"获取Discord角色信息出错: {str(e)}")
+            flash(f'获取Discord角色信息失败: {str(e)}', 'danger')
+    
+    return render_template('groups/roles.html', 
+                          group=group,
+                          is_admin=is_admin,
+                          admin_count=admin_count,
+                          member_count=member_count,
+                          discord_roles=discord_roles,
+                          has_bot_permission=has_bot_permission)
+
+@groups_bp.route('/<int:group_id>/roles/<role_id>/members')
+@login_required
+def role_members(group_id, role_id):
+    """查看特定角色的所有成员"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查是否登录和群组成员权限
+    if not current_user.is_authenticated or (not group.is_public and group not in current_user.groups):
+        flash('您没有查看这个群组的权限', 'warning')
+        return redirect(url_for('groups.list'))
+    
+    # 获取具有该角色的所有成员
+    members = []
+    role_name = f"角色({role_id})"
+    
+    # 如果是Discord群组，获取角色名称
+    if group.discord_id:
+        try:
+            # 导入Discord客户端
+            from app.routes.discord import DiscordClient
+            
+            # 获取当前用户的Discord访问令牌
+            token_info = None
+            if current_user.is_authenticated and current_user.discord_id:
+                token_info = current_user.discord_token_info
+            
+            # 使用Bot令牌或用户令牌获取角色信息
+            access_token = token_info.get('access_token') if token_info else None
+            roles_map = DiscordClient.get_guild_roles(access_token, group.discord_id)
+            
+            # 获取角色名称
+            if role_id in roles_map:
+                role_name = roles_map[role_id].get('name', role_name)
+            
+            # 查找具有此角色的所有成员
+            for member in group.user_members:
+                member_roles = member.get_discord_roles(group.id)
+                if role_id in member_roles:
+                    members.append(member)
+                    
+        except Exception as e:
+            current_app.logger.error(f"获取Discord角色成员出错: {str(e)}")
+            flash(f'获取Discord角色成员失败: {str(e)}', 'danger')
+    
+    # 判断当前用户是否为管理员
+    is_admin = current_user.is_authenticated and (
+        current_user.id == group.owner_id or 
+        current_user.get_role_in_group(group.id) == 'admin'
+    )
+    
+    return render_template('groups/role_members.html', 
+                          group=group,
+                          role_id=role_id,
+                          role_name=role_name,
+                          members=members,
+                          is_admin=is_admin)
+
+@groups_bp.route('/<int:group_id>/add_admin', methods=['POST'])
+@login_required
+def add_admin(group_id):
+    """添加群组管理员"""
+    group = Group.query.get_or_404(group_id)
+    
+    # 检查是否为群主
+    if current_user.id != group.owner_id:
+        flash('只有群组创建者可以添加管理员', 'danger')
+        return redirect(url_for('groups.roles', group_id=group.id))
+    
+    user_id = request.form.get('user_id')
+    if not user_id:
+        flash('请选择要提升为管理员的成员', 'warning')
+        return redirect(url_for('groups.roles', group_id=group.id))
+    
+    try:
+        user_id = int(user_id)
+        user = User.query.get(user_id)
+        
+        if not user:
+            flash('未找到该用户', 'danger')
+            return redirect(url_for('groups.roles', group_id=group.id))
+        
+        # 检查用户是否为群组成员
+        stmt = db.select(group_members).where(
+            (group_members.c.user_id == user_id) & 
+            (group_members.c.group_id == group.id)
+        )
+        is_member = db.session.execute(stmt).first() is not None
+        
+        if not is_member:
+            flash('该用户不是群组成员', 'danger')
+            return redirect(url_for('groups.roles', group_id=group.id))
+        
+        # 更新用户角色为管理员
+        stmt = group_members.update().where(
+            (group_members.c.user_id == user_id) & 
+            (group_members.c.group_id == group.id)
+        ).values(role='admin')
+        
+        db.session.execute(stmt)
+        db.session.commit()
+        
+        flash(f'已将 {user.username} 设置为管理员', 'success')
+        
+    except Exception as e:
+        current_app.logger.error(f"添加管理员错误: {str(e)}")
+        flash(f'添加管理员失败: {str(e)}', 'danger')
+    
+    return redirect(url_for('groups.roles', group_id=group.id))

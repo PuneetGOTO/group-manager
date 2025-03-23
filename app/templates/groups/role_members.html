@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ role_name }} 成员 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<!-- 群组头部信息 -->
+<div class="card mb-4">
+    <div class="group-banner">
+        <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-lg group-avatar" alt="{{ group.name }}">
+    </div>
+    <div class="card-body pt-5">
+        <div class="row">
+            <div class="col-md-8">
+                <h2>{{ group.name }}</h2>
+                <p class="text-muted">{{ group.description }}</p>
+                
+                <div class="mb-3">
+                    <span class="badge bg-primary">
+                        <i class="bi bi-people"></i> {{ group.user_members.count() }} 名成员
+                    </span>
+                    
+                    {% if group.is_public %}
+                    <span class="badge bg-success">公开群组</span>
+                    {% else %}
+                    <span class="badge bg-warning">私有群组</span>
+                    {% endif %}
+                    
+                    {% if group.discord_id %}
+                    <span class="badge bg-info">
+                        <i class="bi bi-discord"></i> Discord集成
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <!-- 群组导航 -->
+                <div class="btn-group mb-3">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-house"></i> 群组主页
+                    </a>
+                    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-people"></i> 成员列表
+                    </a>
+                    <a href="{{ url_for('groups.roles', group_id=group.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-tags"></i> 身份组管理
+                    </a>
+                    {% if is_admin %}
+                    <a href="{{ url_for('groups.settings', group_id=group.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-gear"></i> 群组设置
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 角色成员列表 -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>
+                    拥有 "{{ role_name }}" 身份组的成员
+                    <a href="{{ url_for('groups.roles', group_id=group.id) }}" class="btn btn-sm btn-outline-secondary float-end">
+                        <i class="bi bi-arrow-left"></i> 返回身份组管理
+                    </a>
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- 成员列表 -->
+                {% if members %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>用户</th>
+                                <th>加入时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member in members %}
+                            <tr>
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center">
+                                        {% if member.avatar %}
+                                        <img src="{{ url_for('static', filename=member.avatar) }}" class="avatar-sm me-2" alt="{{ member.username }}">
+                                        {% else %}
+                                        <div class="avatar-sm me-2 bg-primary text-white">{{ member.username[0] }}</div>
+                                        {% endif %}
+                                        
+                                        <div>
+                                            <div class="fw-bold">{{ member.username }}</div>
+                                            <small class="text-muted">{{ member.display_name or member.discord_username or '' }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="align-middle">{{ member.get_join_date(group.id).strftime('%Y-%m-%d') if member.get_join_date(group.id) else '未知' }}</td>
+                                <td class="align-middle">
+                                    <a href="{{ url_for('user.profile', username=member.username) }}" class="btn btn-sm btn-outline-primary">
+                                        查看资料
+                                    </a>
+                                    {% if is_admin and current_user.id != member.id %}
+                                        {% if member.get_role_in_group(group.id) == 'member' %}
+                                        <a href="{{ url_for('groups.promote_to_admin', group_id=group.id, user_id=member.id) }}" class="btn btn-sm btn-outline-success">
+                                            提升为管理员
+                                        </a>
+                                        {% elif member.get_role_in_group(group.id) == 'admin' and current_user.id == group.owner_id %}
+                                        <a href="{{ url_for('groups.demote_from_admin', group_id=group.id, user_id=member.id) }}" class="btn btn-sm btn-outline-warning">
+                                            取消管理员
+                                        </a>
+                                        {% endif %}
+                                        <a href="{{ url_for('groups.remove_member', group_id=group.id, user_id=member.id) }}" class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('确定要将此成员移出群组吗？')">
+                                            移出群组
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 暂无拥有此身份组的成员
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

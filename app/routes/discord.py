@@ -339,11 +339,84 @@ def sync_guild_members(guild_id):
         if "403" in error_message and "Missing Access" in error_message:
             flash('同步成员失败: Discord机器人缺少访问权限。请在Discord开发者门户中开启"Server Members Intent"权限，并确保机器人已经被添加到服务器。', 'danger')
         elif "401" in error_message:
-            flash('同步成员失败: 授权失败，您可能需要重新连接Discord账号。', 'danger')
+            flash('同步成员失败: 认证失败，您可能需要重新连接Discord账号。', 'danger')
         else:
             flash(f'同步成员失败: {error_message}', 'danger')
     
     return redirect(url_for('groups.view', group_id=group.id))
+
+@discord_bp.route('/guilds/<guild_id>/sync_roles')
+@login_required
+def sync_guild_roles(guild_id):
+    """同步Discord服务器角色"""
+    # 检查用户是否已连接Discord
+    if not current_user.discord_id or not current_user.discord_token_info:
+        flash('请先连接您的Discord账号', 'warning')
+        return redirect(url_for('discord.connect'))
+    
+    # 检查是否有该Guild对应的本地群组
+    group = Group.query.filter_by(discord_id=guild_id).first()
+    if not group:
+        flash('未找到对应的群组', 'danger')
+        return redirect(url_for('groups.list'))
+    
+    # 验证当前用户是否有权限管理该群组
+    is_admin = current_user.id == group.owner_id or current_user.get_role_in_group(group.id) == 'admin'
+    if not is_admin:
+        flash('您没有管理此群组的权限', 'warning')
+        return redirect(url_for('groups.view', group_id=group.id))
+    
+    try:
+        # 获取服务器角色信息
+        roles_map = DiscordClient.get_guild_roles(None, guild_id)
+        
+        # 记录角色数量
+        roles_count = len(roles_map)
+        
+        # 更新成员的Discord角色信息
+        updated_count = 0
+        
+        # 获取服务器成员信息
+        members_list = DiscordClient.get_guild_members(guild_id)
+        
+        # 处理成员角色
+        for member_data in members_list:
+            # 获取用户Discord ID
+            discord_user_id = member_data.get('user', {}).get('id')
+            if not discord_user_id:
+                continue
+                
+            # 查找对应的本地用户
+            user = User.query.filter_by(discord_id=discord_user_id).first()
+            if not user:
+                continue
+                
+            # 获取成员角色
+            role_ids = member_data.get('roles', [])
+            if role_ids:
+                # 将角色ID连接为字符串存储
+                discord_roles = ','.join([str(role_id) for role_id in role_ids])
+                
+                # 更新用户在群组中的Discord角色
+                stmt = group_members.update().where(
+                    (group_members.c.user_id == user.id) &
+                    (group_members.c.group_id == group.id)
+                ).values(discord_roles=discord_roles)
+                
+                db.session.execute(stmt)
+                updated_count += 1
+        
+        # 提交事务
+        db.session.commit()
+        
+        flash(f'成功同步 {roles_count} 个Discord角色，更新了 {updated_count} 名成员的角色信息', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"同步Discord角色错误: {str(e)}")
+        flash(f'同步Discord角色失败: {str(e)}', 'danger')
+    
+    return redirect(url_for('groups.roles', group_id=group.id))
 
 class DiscordClient:
     DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
@@ -469,3 +542,24 @@ class DiscordClient:
         except Exception as e:
             current_app.logger.error(f"获取Discord角色错误: {str(e)}")
             raise e
+
+    @classmethod
+    def check_bot_permissions(cls, guild_id):
+        """检查机器人是否有权限访问服务器"""
+        try:
+            if not cls.DISCORD_BOT_TOKEN:
+                return False
+
+            headers = {
+                'Authorization': f'Bot {cls.DISCORD_BOT_TOKEN}'
+            }
+            
+            # 尝试获取服务器信息
+            response = requests.get(f"{cls.DISCORD_API_ENDPOINT}/guilds/{guild_id}", headers=headers)
+            if response.status_code == 200:
+                return True
+            else:
+                return False
+        except Exception as e:
+            current_app.logger.error(f"检查Bot权限失败: {str(e)}")
+            return False

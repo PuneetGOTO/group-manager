@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ group.name }} - 身份组管理 - 群组管理系统{% endblock %}
+
+{% block content %}
+<!-- 群组头部信息 -->
+<div class="card mb-4">
+    <div class="group-banner">
+        <img src="{{ url_for('static', filename=group.avatar) }}" class="avatar-lg group-avatar" alt="{{ group.name }}">
+    </div>
+    <div class="card-body pt-5">
+        <div class="row">
+            <div class="col-md-8">
+                <h2>{{ group.name }}</h2>
+                <p class="text-muted">{{ group.description }}</p>
+                
+                <div class="mb-3">
+                    <span class="badge bg-primary">
+                        <i class="bi bi-people"></i> {{ group.user_members.count() }} 名成员
+                    </span>
+                    
+                    {% if group.is_public %}
+                    <span class="badge bg-success">公开群组</span>
+                    {% else %}
+                    <span class="badge bg-warning">私有群组</span>
+                    {% endif %}
+                    
+                    {% if group.discord_id %}
+                    <span class="badge bg-info">
+                        <i class="bi bi-discord"></i> Discord集成
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <!-- 群组导航 -->
+                <div class="btn-group mb-3">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-house"></i> 群组主页
+                    </a>
+                    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-people"></i> 成员列表
+                    </a>
+                    <a href="{{ url_for('groups.roles', group_id=group.id) }}" class="btn btn-primary">
+                        <i class="bi bi-tags"></i> 身份组管理
+                    </a>
+                    {% if is_admin %}
+                    <a href="{{ url_for('groups.settings', group_id=group.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-gear"></i> 群组设置
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 身份组管理 -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>身份组管理</h4>
+            </div>
+            <div class="card-body">
+                {% if group.discord_id %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 此群组已与Discord服务器关联，身份组信息将从Discord同步。
+                    {% if has_bot_permission %}
+                    <a href="{{ url_for('discord.sync_guild_roles', guild_id=group.discord_id) }}" class="btn btn-sm btn-primary ms-2">
+                        <i class="bi bi-arrow-repeat"></i> 同步Discord身份组
+                    </a>
+                    {% else %}
+                    <span class="text-danger">（需要将机器人添加到Discord服务器以启用同步功能）</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Discord角色列表 -->
+                <div class="table-responsive mb-4">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>角色名称</th>
+                                <th>颜色</th>
+                                <th>成员数量</th>
+                                <th>权限设置</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for role_id, role_info in discord_roles.items() %}
+                            <tr>
+                                <td>
+                                    <span class="badge {% if role_info.color %}mb-1{% else %}bg-secondary mb-1{% endif %}" 
+                                          {% if role_info.color %}style="background-color: {{ role_info.color }};"{% endif %}>
+                                        {{ role_info.name }}
+                                    </span>
+                                </td>
+                                <td>{{ role_info.color if role_info.color else "无" }}</td>
+                                <td>{{ role_info.member_count }}</td>
+                                <td>
+                                    {% if role_info.permissions & 8 %}
+                                    <span class="badge bg-danger">管理员</span>
+                                    {% endif %}
+                                    {% if role_info.permissions & 32 %}
+                                    <span class="badge bg-warning">踢出成员</span>
+                                    {% endif %}
+                                    {% if role_info.permissions & 4 %}
+                                    <span class="badge bg-info">管理频道</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('groups.role_members', group_id=group.id, role_id=role_id) }}" class="btn btn-sm btn-outline-primary">
+                                        查看成员
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">暂无角色信息，请先同步Discord身份组</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <!-- 本地角色管理 -->
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle"></i> 此群组未与Discord服务器关联，使用本地角色管理。
+                </div>
+                
+                <div class="table-responsive mb-4">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>角色名称</th>
+                                <th>成员数量</th>
+                                <th>权限描述</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-danger">群组所有者</span></td>
+                                <td>1</td>
+                                <td>拥有所有权限，可以删除群组</td>
+                                <td>
+                                    <a href="{{ url_for('groups.members', group_id=group.id, role='owner') }}" class="btn btn-sm btn-outline-primary">
+                                        查看成员
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-warning">管理员</span></td>
+                                <td>{{ admin_count }}</td>
+                                <td>可以管理成员、内容和设置</td>
+                                <td>
+                                    <a href="{{ url_for('groups.members', group_id=group.id, role='admin') }}" class="btn btn-sm btn-outline-primary">
+                                        查看成员
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addAdminModal">
+                                        添加管理员
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-secondary">成员</span></td>
+                                <td>{{ member_count }}</td>
+                                <td>基本访问权限</td>
+                                <td>
+                                    <a href="{{ url_for('groups.members', group_id=group.id, role='member') }}" class="btn btn-sm btn-outline-primary">
+                                        查看成员
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加管理员模态框 -->
+<div class="modal fade" id="addAdminModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加管理员</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('groups.add_admin', group_id=group.id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="user_id" class="form-label">选择成员</label>
+                        <select class="form-select" id="user_id" name="user_id" required>
+                            <option value="">-- 选择要提升为管理员的成员 --</option>
+                            {% for member in group.user_members %}
+                                {% if member.get_role_in_group(group.id) == 'member' %}
+                                <option value="{{ member.id }}">{{ member.username }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">添加</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
