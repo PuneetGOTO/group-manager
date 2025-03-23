@@ -363,7 +363,7 @@ def sync_guild_roles(guild_id):
     # 验证当前用户是否有权限管理该群组
     is_admin = current_user.id == group.owner_id or current_user.get_role_in_group(group.id) == 'admin'
     if not is_admin:
-        flash('您没有管理此群组的权限', 'warning')
+        flash('只有群组创建者可以同步角色', 'warning')
         return redirect(url_for('groups.view', group_id=group.id))
     
     try:
@@ -643,6 +643,50 @@ def debug_bot_permissions(guild_id):
         current_app.logger.error(f"调试Bot权限失败: {str(e)}")
         flash(f'调试失败: {str(e)}', 'danger')
         return redirect(url_for('groups.roles', group_id=group.id))
+
+@discord_bp.route('/debug/user-attributes')
+@login_required
+def debug_user_attributes():
+    """调试页面：显示当前用户的所有属性"""
+    if not current_user.is_authenticated:
+        flash('请先登录以访问此页面', 'warning')
+        return redirect(url_for('auth.login'))
+    
+    # 获取用户对象的所有属性和方法
+    user_attrs = {}
+    
+    # 获取类实例的所有属性（实例变量）
+    for attr in dir(current_user):
+        # 排除特殊方法和私有属性
+        if not attr.startswith('_'):
+            try:
+                value = getattr(current_user, attr)
+                
+                # 如果是方法，标记为方法
+                if callable(value):
+                    user_attrs[attr] = "方法"
+                else:
+                    # 对于某些敏感字段，隐藏详细内容
+                    if 'token' in attr.lower() or 'password' in attr.lower() or 'secret' in attr.lower():
+                        user_attrs[attr] = f"{type(value).__name__} (已隐藏敏感内容)"
+                    else:
+                        # 尝试将值转换为字符串，最多显示100个字符
+                        try:
+                            str_value = str(value)
+                            if len(str_value) > 100:
+                                str_value = str_value[:100] + "..."
+                            user_attrs[attr] = str_value
+                        except:
+                            user_attrs[attr] = f"{type(value).__name__} (无法显示)"
+            except Exception as e:
+                user_attrs[attr] = f"错误: {str(e)}"
+    
+    # 按字母顺序排序属性
+    sorted_attrs = {k: user_attrs[k] for k in sorted(user_attrs.keys())}
+    
+    return render_template('discord/debug_user.html', 
+                           user_attrs=sorted_attrs, 
+                           user=current_user)
 
 class DiscordClient:
     DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
