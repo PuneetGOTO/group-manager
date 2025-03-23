@@ -28,7 +28,7 @@
                         <h5 class="card-title mb-0">{{ guild.name }}</h5>
                     </div>
                     
-                    {% if guild.permissions|int & 0x8 == 0x8 %}
+                    {% if (guild.permissions|int) // 8 % 2 == 1 %}
                         <!-- 检查是否有管理员权限 (0x8) -->
                         <p class="text-success"><i class="fas fa-check-circle"></i> 您拥有管理员权限</p>
                         <a href="{{ url_for('discord.import_guild', guild_id=guild.id) }}" class="btn btn-primary w-100">导入为群组</a>
