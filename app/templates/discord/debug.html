@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}机器人权限调试 - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h4><i class="bi bi-bug"></i> Discord机器人权限调试</h4>
+        </div>
+        <div class="card-body">
+            <div class="mb-4">
+                <h5>群组信息</h5>
+                <table class="table table-bordered">
+                    <tr>
+                        <th width="30%">群组ID</th>
+                        <td>{{ group.id }}</td>
+                    </tr>
+                    <tr>
+                        <th>群组名称</th>
+                        <td>{{ group.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Discord服务器ID</th>
+                        <td>{{ group.discord_id }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="mb-4">
+                <h5>机器人配置</h5>
+                <table class="table table-bordered">
+                    <tr>
+                        <th width="30%">Bot令牌已配置</th>
+                        <td>
+                            {% if result.token_configured %}
+                            <span class="badge bg-success">是</span>
+                            {% else %}
+                            <span class="badge bg-danger">否</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>令牌值</th>
+                        <td>{{ result.masked_token }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="mb-4">
+                <h5>API请求信息</h5>
+                <table class="table table-bordered">
+                    <tr>
+                        <th width="30%">请求URL</th>
+                        <td>{{ result.api_url }}</td>
+                    </tr>
+                    <tr>
+                        <th>状态码</th>
+                        <td>
+                            {% if result.status_code == 200 %}
+                            <span class="badge bg-success">{{ result.status_code }}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ result.status_code }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>请求结果</th>
+                        <td>
+                            {% if result.success %}
+                            <span class="badge bg-success">成功</span>
+                            {% else %}
+                            <span class="badge bg-danger">失败</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            {% if result.success %}
+            <div class="mb-4">
+                <h5>Discord服务器信息</h5>
+                <table class="table table-bordered">
+                    <tr>
+                        <th width="30%">服务器名称</th>
+                        <td>{{ result.guild_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>服务器所有者ID</th>
+                        <td>{{ result.guild_owner_id }}</td>
+                    </tr>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-danger">
+                <h5><i class="bi bi-exclamation-triangle"></i> 错误信息</h5>
+                <p>{{ result.error }}</p>
+            </div>
+            {% endif %}
+
+            <div class="alert alert-info mt-4">
+                <h5><i class="bi bi-lightbulb"></i> 可能的解决方案</h5>
+                <ul>
+                    {% if not result.token_configured %}
+                    <li>请确保在环境变量中正确配置了<code>DISCORD_BOT_TOKEN</code></li>
+                    {% endif %}
+                    
+                    {% if not result.success %}
+                    <li>确认机器人已被添加到Discord服务器，且拥有足够的权限</li>
+                    <li>验证机器人令牌是否有效并且没有过期</li>
+                    <li>检查服务器ID是否正确</li>
+                    {% endif %}
+                    
+                    <li>尝试重启应用，让环境变量重新加载</li>
+                    <li>在Discord开发者平台重新生成机器人令牌，并更新环境变量</li>
+                </ul>
+            </div>
+        </div>
+        <div class="card-footer">
+            <a href="{{ url_for('groups.roles', group_id=group.id) }}" class="btn btn-primary">
+                <i class="bi bi-arrow-left"></i> 返回角色管理
+            </a>
+            <a href="{{ url_for('discord.debug_bot_permissions', guild_id=group.discord_id) }}" class="btn btn-info">
+                <i class="bi bi-arrow-clockwise"></i> 刷新信息
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

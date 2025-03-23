@@ -354,7 +354,7 @@ def sync_guild_roles(guild_id):
         flash('请先连接您的Discord账号', 'warning')
         return redirect(url_for('discord.connect'))
     
-    # 检查是否有该Guild对应的本地群组
+    # 查找对应的本地群组
     group = Group.query.filter_by(discord_id=guild_id).first()
     if not group:
         flash('未找到对应的群组', 'danger')
@@ -484,7 +484,7 @@ def create_guild_role(guild_id):
     
     return redirect(url_for('groups.roles', group_id=group.id))
 
-@discord_bp.route('/guilds/<guild_id>/roles/<role_id>/delete', methods=['POST'])
+@discord_bp.route('/guilds/<guild_id>/roles/delete/<role_id>', methods=['POST'])
 @login_required
 def delete_guild_role(guild_id, role_id):
     """删除Discord服务器角色"""
@@ -589,6 +589,60 @@ def update_guild_role(guild_id, role_id):
         flash(f'更新角色失败: {str(e)}', 'danger')
     
     return redirect(url_for('groups.roles', group_id=group.id))
+
+@discord_bp.route('/debug/bot-permissions/<guild_id>')
+@login_required
+def debug_bot_permissions(guild_id):
+    """调试页面：检查机器人权限"""
+    # 确保用户有权访问
+    group = Group.query.filter_by(discord_id=guild_id).first()
+    if not group:
+        flash('未找到对应的群组', 'danger')
+        return redirect(url_for('groups.list'))
+    
+    # 验证当前用户是否有权限管理该群组
+    is_admin = current_user.id == group.owner_id or current_user.get_role_in_group(group.id) == 'admin'
+    if not is_admin:
+        flash('您没有管理此群组的权限', 'warning')
+        return redirect(url_for('groups.view', group_id=group.id))
+    
+    try:
+        bot_token = os.getenv('DISCORD_BOT_TOKEN', '')
+        masked_token = bot_token[:5] + '...' + bot_token[-5:] if len(bot_token) > 10 else 'Not configured'
+        
+        headers = {
+            'Authorization': f'Bot {bot_token}'
+        }
+        
+        # 尝试获取服务器信息
+        result = {}
+        result['guild_id'] = guild_id
+        result['token_configured'] = bool(bot_token)
+        result['masked_token'] = masked_token
+        
+        # 获取服务器信息
+        api_url = f"{DiscordClient.DISCORD_API_ENDPOINT}/guilds/{guild_id}"
+        result['api_url'] = api_url
+        
+        response = requests.get(api_url, headers=headers)
+        result['status_code'] = response.status_code
+        result['success'] = response.status_code == 200
+        
+        if response.status_code == 200:
+            guild_data = response.json()
+            result['guild_name'] = guild_data.get('name', 'Unknown')
+            result['guild_owner_id'] = guild_data.get('owner_id', 'Unknown')
+        else:
+            result['error'] = response.text
+        
+        return render_template('discord/debug.html', 
+                              group=group,
+                              result=result,
+                              is_admin=is_admin)
+    except Exception as e:
+        current_app.logger.error(f"调试Bot权限失败: {str(e)}")
+        flash(f'调试失败: {str(e)}', 'danger')
+        return redirect(url_for('groups.roles', group_id=group.id))
 
 class DiscordClient:
     DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
