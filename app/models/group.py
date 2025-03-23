@@ -16,6 +16,9 @@ class Group(db.Model):
     # 外键
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
+    # Discord集成
+    discord_id = db.Column(db.String(100), unique=True, nullable=True)
+    
     # 关系
     posts = db.relationship('Post', backref='group', lazy=True, cascade="all, delete-orphan")
     events = db.relationship('Event', backref='group', lazy=True, cascade="all, delete-orphan")

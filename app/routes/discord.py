@@ -173,7 +173,7 @@ def import_guild(guild_id):
             description=f"从Discord服务器'{guild['name']}'导入的群组",
             avatar=f"https://cdn.discordapp.com/icons/{guild_id}/{guild['icon']}.png" if guild.get('icon') else 'default_group.png',
             banner='default_banner.jpg',
-            owner=current_user,
+            owner_id=current_user.id,
             discord_id=guild_id
         )
         
