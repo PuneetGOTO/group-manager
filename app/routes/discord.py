@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import json
 import os
 import secrets
+import requests  # 添加直接使用requests
 
 discord_bp = Blueprint('discord', __name__)
 
@@ -103,12 +104,37 @@ def guilds():
             return redirect(url_for('discord.connect'))
     
     try:
-        # 获取用户的Discord服务器列表
-        guilds = DiscordClient.get_user_guilds(current_user.discord_access_token)
+        # 直接使用requests，绕过DiscordClient类
+        url = "https://discord.com/api/v10/users/@me/guilds"
+        headers = {
+            'Authorization': f'Bearer {current_user.discord_access_token}',
+            'Accept': 'application/json'
+        }
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code != 200:
+            raise Exception(f"API错误: {response.status_code}")
+        
+        # 确保我们可以安全地处理响应内容
+        try:
+            # 尝试手动修复常见的JSON解析问题
+            content = response.content.decode('utf-8')
+            # 替换可能导致问题的特殊字符
+            content = content.replace('&', '_')
+            # 尝试解析修复后的内容
+            guilds = json.loads(content)
+        except json.JSONDecodeError as e:
+            # 如果仍然无法解析，则使用空列表
+            guilds = []
+            flash(f'解析Discord服务器列表时出错，可能无法显示所有服务器: {str(e)}', 'warning')
+        
         return render_template('discord/guilds.html', guilds=guilds)
+    
     except Exception as e:
         flash(f'获取Discord服务器列表失败: {str(e)}', 'danger')
-        return redirect(url_for('user.settings'))
+        # 出错时也提供空列表，确保页面可以正常加载
+        return render_template('discord/guilds.html', guilds=[])
 
 @discord_bp.route('/guild/<guild_id>/import')
 @login_required
