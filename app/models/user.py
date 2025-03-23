@@ -131,7 +131,12 @@ class User(db.Model, UserMixin):
             f"发现对已弃用的discord_token_info属性的访问！"
             f"位置: {caller.filename}:{caller.lineno} in {caller.name}"
         )
-        return self.discord_access_token
+        
+        # 返回一个包含access_token的字典，而不是直接返回字符串
+        # 这样可以兼容期望调用.get()方法的代码
+        if self.discord_access_token:
+            return {'access_token': self.discord_access_token}
+        return None
     
     def __repr__(self):
         return f'<User {self.username}>'
