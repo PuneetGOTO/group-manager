@@ -1,5 +1,5 @@
 """Discord集成路由"""
-from flask import Blueprint, redirect, url_for, flash, session, request, render_template
+from flask import Blueprint, redirect, url_for, flash, session, request, render_template, current_app
 from flask_login import login_required, current_user
 from app.discord.client import DiscordClient
 from app.models import User, Group
@@ -276,7 +276,15 @@ def sync_guild_members(guild_id):
     
     except Exception as e:
         db.session.rollback()
-        flash(f'同步成员失败: {str(e)}', 'danger')
-        current_app.logger.error(f"同步Discord成员错误: {str(e)}")
+        error_message = str(e)
+        current_app.logger.error(f"同步Discord成员错误: {error_message}")
+        
+        # 提供更友好的错误提示
+        if "403" in error_message and "Missing Access" in error_message:
+            flash('同步成员失败: Discord机器人缺少访问权限。请在Discord开发者门户中开启"Server Members Intent"权限，并确保机器人已经被添加到服务器。', 'danger')
+        elif "401" in error_message:
+            flash('同步成员失败: 授权失败，您可能需要重新连接Discord账号。', 'danger')
+        else:
+            flash(f'同步成员失败: {error_message}', 'danger')
     
     return redirect(url_for('groups.view', group_id=group.id))

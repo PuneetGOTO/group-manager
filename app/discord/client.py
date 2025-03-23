@@ -124,6 +124,8 @@ class DiscordClient:
     @staticmethod
     def get_guild_members(access_token, guild_id):
         """获取服务器成员列表 (使用用户访问令牌或机器人令牌)"""
+        from flask import current_app
+        
         # 尝试使用用户访问令牌
         url = f"{DISCORD_API_ENDPOINT}/guilds/{guild_id}/members?limit=1000"
         
@@ -132,20 +134,42 @@ class DiscordClient:
             'Authorization': f'Bearer {access_token}'
         }
         
-        response = requests.get(url, headers=headers)
-        
-        # 如果使用用户令牌失败，尝试使用机器人令牌
-        if response.status_code != 200 and DISCORD_BOT_TOKEN:
-            current_app.logger.info(f"使用用户令牌获取成员失败，尝试使用机器人令牌: {response.status_code}")
-            headers = {
-                'Authorization': f'Bot {DISCORD_BOT_TOKEN}'
-            }
+        try:
+            current_app.logger.debug(f"尝试使用用户令牌获取服务器成员: {url}")
             response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            error_msg = f"获取服务器成员列表失败: {response.status_code} - {response.text}"
+            current_app.logger.debug(f"用户令牌响应状态码: {response.status_code}")
+            
+            # 如果使用用户令牌失败，尝试使用机器人令牌
+            if response.status_code != 200 and DISCORD_BOT_TOKEN:
+                current_app.logger.info(f"使用用户令牌获取成员失败，尝试使用机器人令牌: {response.status_code}")
+                headers = {
+                    'Authorization': f'Bot {DISCORD_BOT_TOKEN}'
+                }
+                
+                # 检查机器人权限
+                current_app.logger.debug(f"机器人令牌: {'已配置' if DISCORD_BOT_TOKEN else '未配置'}")
+                current_app.logger.debug(f"机器人权限: {DISCORD_BOT_PERMISSIONS}")
+                
+                response = requests.get(url, headers=headers)
+                current_app.logger.debug(f"机器人令牌响应状态码: {response.status_code}")
+                current_app.logger.debug(f"响应内容: {response.text}")
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                error_msg = f"获取服务器成员列表失败: {response.status_code} - {response.text}"
+                current_app.logger.error(error_msg)
+                
+                # 提供更有帮助的错误信息
+                if response.status_code == 403:
+                    current_app.logger.error("错误原因: 机器人缺少访问权限。请确保机器人已添加到服务器并具有'Server Members Intent'权限")
+                elif response.status_code == 401:
+                    current_app.logger.error("错误原因: 授权失败。请检查令牌是否有效，或用户是否有'guilds.members.read'OAuth2权限")
+                
+                raise Exception(error_msg)
+                
+        except requests.RequestException as e:
+            error_msg = f"请求Discord API时出错: {str(e)}"
             current_app.logger.error(error_msg)
             raise Exception(error_msg)
     
