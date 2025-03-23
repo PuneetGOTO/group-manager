@@ -289,7 +289,15 @@ def sync_guild_members(guild_id):
                 if role_id_str in roles_map:
                     role_data = roles_map[role_id_str]
                     # Discord权限中，管理员权限是8（或者包含管理员关键字）
-                    if role_data.get('permissions', 0) & 8 or 'admin' in role_data.get('name', '').lower():
+                    permissions = role_data.get('permissions', 0)
+                    # 确保permissions是整数
+                    if isinstance(permissions, str):
+                        try:
+                            permissions = int(permissions)
+                        except (ValueError, TypeError):
+                            permissions = 0
+                    
+                    if permissions & 8 or 'admin' in role_data.get('name', '').lower():
                         is_admin = True
                         break
                         
