@@ -3,6 +3,7 @@ from flask import Blueprint, redirect, url_for, flash, session, request, render_
 from flask_login import login_required, current_user
 from app.discord.client import DiscordClient
 from app.models import User, Group
+from app.models.user import group_members
 from app import db
 from datetime import datetime, timedelta
 import json
