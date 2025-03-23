@@ -226,20 +226,23 @@ def sync_guild_members(guild_id):
             # 尝试查找已有用户
             user = User.query.filter_by(discord_id=discord_id).first()
             
+            # 获取用户实际显示名称和角色
+            discord_username = user_data.get('username', '')
+            nickname = member.get('nick')  # Discord中设置的昵称
+            display_name = nickname or discord_username  # 优先使用昵称
+            
+            # 收集用户角色ID列表
+            role_ids = member.get('roles', [])
+            
             # 如果没有找到，创建一个新用户
             if not user:
-                # 创建用户名：如果有辨别符号，使用username#discriminator，否则只用username
-                discord_username = user_data.get('username')
-                discriminator = user_data.get('discriminator')
-                display_name = f"{discord_username}#{discriminator}" if discriminator else discord_username
-                
                 # 为Discord用户生成随机密码
                 import secrets
                 random_password = secrets.token_hex(16)
                 
-                # 创建新用户
+                # 创建新用户，使用实际用户名
                 user = User(
-                    username=f"discord_{discord_id}",
+                    username=display_name,  # 使用真实显示名称而不是ID
                     email=f"discord_{discord_id}@placeholder.com",  # 占位邮箱
                     password=random_password,  # 设置随机密码
                     discord_id=discord_id,
@@ -248,6 +251,11 @@ def sync_guild_members(guild_id):
                 )
                 db.session.add(user)
                 db.session.flush()  # 确保用户有ID
+            else:
+                # 更新现有用户的Discord用户名
+                user.discord_username = display_name
+                if user_data.get('avatar'):
+                    user.discord_avatar = f"https://cdn.discordapp.com/avatars/{discord_id}/{user_data.get('avatar')}.png"
             
             # 检查用户是否已经在群组中
             stmt = db.select(group_members).where(
@@ -258,19 +266,40 @@ def sync_guild_members(guild_id):
             
             # 如果不在群组中，添加用户到群组
             if not existing_membership:
-                # 判断是否为服务器所有者/管理员
-                is_admin = (member.get('roles') and any(r in ['owner', 'administrator'] for r in member.get('roles')))
-                role = 'admin' if is_admin else 'member'
+                # 判断角色 - 更复杂的角色处理
+                is_owner = member.get('owner', False)
+                is_admin = False
                 
-                # 添加到群组
+                # 将Discord角色ID转换为角色名并存储
+                discord_roles = ','.join([str(role_id) for role_id in role_ids]) if role_ids else ''
+                
+                # 检查是否为管理员 - 根据身份组判断
+                if discord_roles and any(r in ['owner', 'administrator'] for r in role_ids):
+                    is_admin = True
+                
+                # 设置用户在群组中的角色
+                role = 'admin' if (is_owner or is_admin) else 'member'
+                
+                # 添加到群组，同时存储Discord角色信息
                 stmt = group_members.insert().values(
                     user_id=user.id,
                     group_id=group.id,
                     role=role,
-                    joined_at=datetime.utcnow()
+                    joined_at=datetime.utcnow(),
+                    discord_roles=discord_roles  # 存储Discord角色ID列表
                 )
                 db.session.execute(stmt)
                 sync_count += 1
+            else:
+                # 更新现有成员的角色信息
+                discord_roles = ','.join([str(role_id) for role_id in role_ids]) if role_ids else ''
+                stmt = group_members.update().where(
+                    (group_members.c.user_id == user.id) & 
+                    (group_members.c.group_id == group.id)
+                ).values(
+                    discord_roles=discord_roles
+                )
+                db.session.execute(stmt)
         
         db.session.commit()
         flash(f'成功同步了 {sync_count} 名成员', 'success')

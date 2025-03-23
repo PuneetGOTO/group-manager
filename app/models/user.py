@@ -13,7 +13,8 @@ group_members = db.Table('group_members',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('group_id', db.Integer, db.ForeignKey('group.id'), primary_key=True),
     db.Column('role', db.String(20), default='member'),  # 角色: admin, moderator, member
-    db.Column('joined_at', db.DateTime, default=datetime.utcnow)
+    db.Column('joined_at', db.DateTime, default=datetime.utcnow),
+    db.Column('discord_roles', db.Text, nullable=True)  # 存储Discord角色ID，以逗号分隔
 )
 
 class User(db.Model, UserMixin):
