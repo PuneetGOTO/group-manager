@@ -45,7 +45,7 @@ class DiscordClient:
     @staticmethod
     def exchange_code(code):
         """用授权码换取访问令牌"""
-        from .config import DISCORD_TOKEN_URL, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI
+        from .config import DISCORD_TOKEN_URL, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI, DISCORD_SCOPES
         
         # 验证必需的凭据是否存在
         if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
@@ -58,7 +58,7 @@ class DiscordClient:
             'grant_type': 'authorization_code',
             'code': code,
             'redirect_uri': DISCORD_REDIRECT_URI,
-            'scope': 'identify email guilds bot'
+            'scope': ' '.join(DISCORD_SCOPES)  # 使用配置中定义的作用域列表
         }
         
         headers = {
