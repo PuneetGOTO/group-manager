@@ -102,7 +102,7 @@
                                     </a>
                                     {% if is_admin and current_user.id != member.id %}
                                         {% if member.get_role_in_group(group.id) == 'member' %}
-                                        <a href="{{ url_for('groups.promote_to_admin', group_id=group.id, user_id=member.id) }}" class="btn btn-sm btn-outline-success">
+                                        <a href="{{ url_for('groups.make_admin', group_id=group.id, user_id=member.id) }}" class="btn btn-sm btn-outline-success">
                                             提升为管理员
                                         </a>
                                         {% elif member.get_role_in_group(group.id) == 'admin' and current_user.id == group.owner_id %}
