@@ -95,12 +95,31 @@ class DiscordClient:
             'Authorization': f'Bearer {access_token}'
         }
         
-        response = requests.get(url, headers=headers)
+        current_app.logger.debug(f"正在请求Discord服务器列表: {url}")
         
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"获取用户服务器列表失败: {response.status_code} - {response.text}")
+        try:
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                try:
+                    # 尝试解析JSON响应
+                    return response.json()
+                except json.JSONDecodeError as e:
+                    # 记录原始响应内容以便调试
+                    current_app.logger.error(f"Discord API返回内容解析失败: {str(e)}")
+                    current_app.logger.debug(f"响应内容: {response.text[:200]}...") # 只记录前200个字符避免日志过大
+                    
+                    # 尝试手动清理响应内容中的特殊字符
+                    cleaned_text = response.text.replace('&', '&amp;')
+                    try:
+                        return json.loads(cleaned_text)
+                    except:
+                        raise Exception(f"Discord服务器列表JSON解析错误: {str(e)}")
+            else:
+                raise Exception(f"获取Discord服务器列表失败: {response.status_code} - {response.text}")
+        except Exception as e:
+            current_app.logger.error(f"获取Discord服务器列表异常: {str(e)}")
+            raise
     
     @staticmethod
     def get_guild_members(guild_id):
