@@ -106,7 +106,8 @@
                                 <small class="text-muted">Discord身份组:</small>
                                 <div class="discord-roles">
                                     {% for role_id in discord_roles[member.id] %}
-                                    {% set role_info = discord_role_names.get(role_id, {'name': role_id, 'color': None}) %}
+                                    {% set role_id_str = role_id | string %}
+                                    {% set role_info = discord_role_names.get(role_id_str, {'name': '角色('+role_id_str+')', 'color': None}) %}
                                     <span class="badge {% if role_info.color %}mb-1{% else %}bg-info mb-1{% endif %}" 
                                           {% if role_info.color %}style="background-color: {{ role_info.color }};"{% endif %}>
                                         {{ role_info.name }}

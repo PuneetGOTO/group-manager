@@ -368,7 +368,10 @@ def sync_guild_roles(guild_id):
     
     try:
         # 获取服务器角色信息
-        roles_map = DiscordClient.get_guild_roles(None, guild_id)
+        roles_map = DiscordClient.get_guild_roles(
+            current_user.discord_access_token,
+            guild_id
+        )
         
         # 记录角色数量
         roles_count = len(roles_map)
@@ -377,7 +380,10 @@ def sync_guild_roles(guild_id):
         updated_count = 0
         
         # 获取服务器成员信息
-        members_list = DiscordClient.get_guild_members(guild_id)
+        members_list = DiscordClient.get_guild_members(
+            current_user.discord_access_token,
+            guild_id
+        )
         
         # 处理成员角色
         for member_data in members_list:
@@ -415,6 +421,172 @@ def sync_guild_roles(guild_id):
         db.session.rollback()
         current_app.logger.error(f"同步Discord角色错误: {str(e)}")
         flash(f'同步Discord角色失败: {str(e)}', 'danger')
+    
+    return redirect(url_for('groups.roles', group_id=group.id))
+
+@discord_bp.route('/guilds/<guild_id>/roles/create', methods=['POST'])
+@login_required
+def create_guild_role(guild_id):
+    """创建Discord服务器角色"""
+    # 检查用户是否已连接Discord
+    if not current_user.discord_id or not current_user.discord_token_info:
+        flash('请先连接您的Discord账号', 'warning')
+        return redirect(url_for('discord.connect'))
+    
+    # 检查是否有该Guild对应的本地群组
+    group = Group.query.filter_by(discord_id=guild_id).first()
+    if not group:
+        flash('未找到对应的群组', 'danger')
+        return redirect(url_for('groups.list'))
+    
+    # 验证当前用户是否有权限管理该群组
+    is_admin = current_user.id == group.owner_id or current_user.get_role_in_group(group.id) == 'admin'
+    if not is_admin:
+        flash('您没有管理此群组的权限', 'warning')
+        return redirect(url_for('groups.view', group_id=group.id))
+    
+    # 检查机器人是否有权限
+    has_bot_permission = DiscordClient.check_bot_permissions(guild_id)
+    if not has_bot_permission:
+        flash('Discord机器人没有管理此服务器的权限，请确保机器人已被添加到服务器并具有管理角色的权限', 'danger')
+        return redirect(url_for('groups.roles', group_id=group.id))
+    
+    # 获取表单数据
+    role_name = request.form.get('role_name', '').strip()
+    color = request.form.get('color', '#000000').strip()
+    mentionable = request.form.get('mentionable', 'off') == 'on'
+    
+    # 验证数据
+    if not role_name:
+        flash('角色名称不能为空', 'warning')
+        return redirect(url_for('groups.roles', group_id=group.id))
+    
+    # 转换颜色格式
+    if color.startswith('#'):
+        color = int(color[1:], 16)
+    else:
+        color = 0
+    
+    try:
+        # 创建角色
+        role_data = DiscordClient.create_guild_role(
+            guild_id=guild_id,
+            role_name=role_name,
+            color=color,
+            mentionable=mentionable
+        )
+        
+        flash(f'成功创建角色: {role_name}', 'success')
+        
+    except Exception as e:
+        current_app.logger.error(f"创建Discord角色错误: {str(e)}")
+        flash(f'创建角色失败: {str(e)}', 'danger')
+    
+    return redirect(url_for('groups.roles', group_id=group.id))
+
+@discord_bp.route('/guilds/<guild_id>/roles/<role_id>/delete', methods=['POST'])
+@login_required
+def delete_guild_role(guild_id, role_id):
+    """删除Discord服务器角色"""
+    # 检查用户是否已连接Discord
+    if not current_user.discord_id or not current_user.discord_token_info:
+        flash('请先连接您的Discord账号', 'warning')
+        return redirect(url_for('discord.connect'))
+    
+    # 检查是否有该Guild对应的本地群组
+    group = Group.query.filter_by(discord_id=guild_id).first()
+    if not group:
+        flash('未找到对应的群组', 'danger')
+        return redirect(url_for('groups.list'))
+    
+    # 验证当前用户是否有权限管理该群组
+    is_admin = current_user.id == group.owner_id or current_user.get_role_in_group(group.id) == 'admin'
+    if not is_admin:
+        flash('您没有管理此群组的权限', 'warning')
+        return redirect(url_for('groups.view', group_id=group.id))
+    
+    # 检查机器人是否有权限
+    has_bot_permission = DiscordClient.check_bot_permissions(guild_id)
+    if not has_bot_permission:
+        flash('Discord机器人没有管理此服务器的权限，请确保机器人已被添加到服务器并具有管理角色的权限', 'danger')
+        return redirect(url_for('groups.roles', group_id=group.id))
+    
+    try:
+        # 获取角色信息
+        roles_map = DiscordClient.get_guild_roles(None, guild_id)
+        role_name = "未知角色"
+        if role_id in roles_map:
+            role_name = roles_map[role_id].get('name', role_name)
+        
+        # 删除角色
+        DiscordClient.delete_guild_role(guild_id, role_id)
+        
+        flash(f'成功删除角色: {role_name}', 'success')
+        
+    except Exception as e:
+        current_app.logger.error(f"删除Discord角色错误: {str(e)}")
+        flash(f'删除角色失败: {str(e)}', 'danger')
+    
+    return redirect(url_for('groups.roles', group_id=group.id))
+
+@discord_bp.route('/guilds/<guild_id>/roles/<role_id>/update', methods=['POST'])
+@login_required
+def update_guild_role(guild_id, role_id):
+    """更新Discord服务器角色"""
+    # 检查用户是否已连接Discord
+    if not current_user.discord_id or not current_user.discord_token_info:
+        flash('请先连接您的Discord账号', 'warning')
+        return redirect(url_for('discord.connect'))
+    
+    # 检查是否有该Guild对应的本地群组
+    group = Group.query.filter_by(discord_id=guild_id).first()
+    if not group:
+        flash('未找到对应的群组', 'danger')
+        return redirect(url_for('groups.list'))
+    
+    # 验证当前用户是否有权限管理该群组
+    is_admin = current_user.id == group.owner_id or current_user.get_role_in_group(group.id) == 'admin'
+    if not is_admin:
+        flash('您没有管理此群组的权限', 'warning')
+        return redirect(url_for('groups.view', group_id=group.id))
+    
+    # 检查机器人是否有权限
+    has_bot_permission = DiscordClient.check_bot_permissions(guild_id)
+    if not has_bot_permission:
+        flash('Discord机器人没有管理此服务器的权限，请确保机器人已被添加到服务器并具有管理角色的权限', 'danger')
+        return redirect(url_for('groups.roles', group_id=group.id))
+    
+    # 获取表单数据
+    role_name = request.form.get('role_name', '').strip()
+    color = request.form.get('color', '#000000').strip()
+    mentionable = request.form.get('mentionable', 'off') == 'on'
+    
+    # 验证数据
+    if not role_name:
+        flash('角色名称不能为空', 'warning')
+        return redirect(url_for('groups.roles', group_id=group.id))
+    
+    # 转换颜色格式
+    if color.startswith('#'):
+        color = int(color[1:], 16)
+    else:
+        color = 0
+    
+    try:
+        # 更新角色
+        role_data = DiscordClient.update_guild_role(
+            guild_id=guild_id,
+            role_id=role_id,
+            role_name=role_name,
+            color=color,
+            mentionable=mentionable
+        )
+        
+        flash(f'成功更新角色: {role_name}', 'success')
+        
+    except Exception as e:
+        current_app.logger.error(f"更新Discord角色错误: {str(e)}")
+        flash(f'更新角色失败: {str(e)}', 'danger')
     
     return redirect(url_for('groups.roles', group_id=group.id))
 
@@ -563,3 +735,95 @@ class DiscordClient:
         except Exception as e:
             current_app.logger.error(f"检查Bot权限失败: {str(e)}")
             return False
+
+    @classmethod
+    def create_guild_role(cls, guild_id, role_name, color=0, permissions=0, mentionable=True):
+        """创建Discord服务器角色"""
+        if not cls.DISCORD_BOT_TOKEN:
+            raise ValueError("Discord Bot令牌未设置")
+        
+        headers = {
+            'Authorization': f'Bot {cls.DISCORD_BOT_TOKEN}',
+            'Content-Type': 'application/json'
+        }
+        
+        # 准备角色数据
+        data = {
+            'name': role_name,
+            'color': color,
+            'permissions': permissions,
+            'mentionable': mentionable
+        }
+        
+        # 创建角色
+        response = requests.post(
+            f"{cls.DISCORD_API_ENDPOINT}/guilds/{guild_id}/roles",
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code == 200 or response.status_code == 201:
+            return response.json()
+        else:
+            error_message = f"创建角色失败: HTTP {response.status_code} - {response.text}"
+            current_app.logger.error(error_message)
+            raise Exception(error_message)
+    
+    @classmethod
+    def delete_guild_role(cls, guild_id, role_id):
+        """删除Discord服务器角色"""
+        if not cls.DISCORD_BOT_TOKEN:
+            raise ValueError("Discord Bot令牌未设置")
+        
+        headers = {
+            'Authorization': f'Bot {cls.DISCORD_BOT_TOKEN}'
+        }
+        
+        # 删除角色
+        response = requests.delete(
+            f"{cls.DISCORD_API_ENDPOINT}/guilds/{guild_id}/roles/{role_id}",
+            headers=headers
+        )
+        
+        if response.status_code == 204:
+            return True
+        else:
+            error_message = f"删除角色失败: HTTP {response.status_code} - {response.text}"
+            current_app.logger.error(error_message)
+            raise Exception(error_message)
+    
+    @classmethod
+    def update_guild_role(cls, guild_id, role_id, role_name=None, color=None, permissions=None, mentionable=None):
+        """更新Discord服务器角色"""
+        if not cls.DISCORD_BOT_TOKEN:
+            raise ValueError("Discord Bot令牌未设置")
+        
+        headers = {
+            'Authorization': f'Bot {cls.DISCORD_BOT_TOKEN}',
+            'Content-Type': 'application/json'
+        }
+        
+        # 准备角色数据
+        data = {}
+        if role_name is not None:
+            data['name'] = role_name
+        if color is not None:
+            data['color'] = color
+        if permissions is not None:
+            data['permissions'] = permissions
+        if mentionable is not None:
+            data['mentionable'] = mentionable
+        
+        # 更新角色
+        response = requests.patch(
+            f"{cls.DISCORD_API_ENDPOINT}/guilds/{guild_id}/roles/{role_id}",
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            error_message = f"更新角色失败: HTTP {response.status_code} - {response.text}"
+            current_app.logger.error(error_message)
+            raise Exception(error_message)

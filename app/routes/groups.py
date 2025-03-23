@@ -474,30 +474,30 @@ def members(group_id):
             # 导入Discord客户端
             from app.routes.discord import DiscordClient
             
-            # 获取当前用户的Discord访问令牌
-            token_info = None
-            if current_user.is_authenticated and current_user.discord_id:
-                token_info = current_user.discord_token_info
-            
-            # 使用Bot令牌或用户令牌获取角色信息
-            access_token = token_info.get('access_token') if token_info else None
-            roles_map = DiscordClient.get_guild_roles(access_token, group.discord_id)
+            # 始终使用Bot令牌获取角色信息，这样更可靠
+            roles_map = DiscordClient.get_guild_roles(None, group.discord_id)
             
             # 创建角色ID到名称的映射
             for role_id, role_data in roles_map.items():
+                # 确保role_id是字符串
+                role_id_str = str(role_id)
                 # 存储角色名称和颜色信息
-                discord_role_names[role_id] = {
+                discord_role_names[role_id_str] = {
                     'name': role_data.get('name', f'未知角色({role_id})'),
                     'color': f"#{role_data.get('color', 0):06x}" if role_data.get('color', 0) > 0 else None
                 }
+            
+            # 调试日志
+            current_app.logger.debug(f"获取到Discord角色: {discord_role_names}")
                 
         except Exception as e:
             current_app.logger.error(f"获取Discord角色名称出错: {str(e)}")
             # 出错时使用ID作为名称
             for member_id, role_ids in discord_roles.items():
                 for role_id in role_ids:
-                    if role_id not in discord_role_names:
-                        discord_role_names[role_id] = {'name': f'角色({role_id})', 'color': None}
+                    role_id_str = str(role_id)
+                    if role_id_str not in discord_role_names:
+                        discord_role_names[role_id_str] = {'name': f'角色({role_id})', 'color': None}
     
     # 判断当前用户是否为管理员
     is_admin = current_user.is_authenticated and (

@@ -66,9 +66,14 @@
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle"></i> 此群组已与Discord服务器关联，身份组信息将从Discord同步。
                     {% if has_bot_permission %}
-                    <a href="{{ url_for('discord.sync_guild_roles', guild_id=group.discord_id) }}" class="btn btn-sm btn-primary ms-2">
-                        <i class="bi bi-arrow-repeat"></i> 同步Discord身份组
-                    </a>
+                    <div class="btn-group mt-2">
+                        <a href="{{ url_for('discord.sync_guild_roles', guild_id=group.discord_id) }}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-arrow-repeat"></i> 同步Discord身份组
+                        </a>
+                        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+                            <i class="bi bi-plus-circle"></i> 创建新身份组
+                        </button>
+                    </div>
                     {% else %}
                     <span class="text-danger">（需要将机器人添加到Discord服务器以启用同步功能）</span>
                     {% endif %}
@@ -112,6 +117,9 @@
                                     <a href="{{ url_for('groups.role_members', group_id=group.id, role_id=role_id) }}" class="btn btn-sm btn-outline-primary">
                                         查看成员
                                     </a>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteRoleModal{{ role_id }}">
+                                        删除
+                                    </button>
                                 </td>
                             </tr>
                             {% else %}
@@ -211,4 +219,55 @@
         </div>
     </div>
 </div>
+
+<!-- 创建新身份组模态框 -->
+<div class="modal fade" id="createRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">创建新身份组</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('discord.create_guild_role', guild_id=group.discord_id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="role_name" class="form-label">身份组名称</label>
+                        <input type="text" class="form-control" id="role_name" name="role_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role_color" class="form-label">身份组颜色</label>
+                        <input type="color" class="form-control" id="role_color" name="role_color" required>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">创建</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除身份组模态框 -->
+{% for role_id, role_info in discord_roles.items() %}
+<div class="modal fade" id="deleteRoleModal{{ role_id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">删除身份组</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除身份组 "{{ role_info.name }}" 吗？</p>
+                <form action="{{ url_for('discord.delete_guild_role', guild_id=group.discord_id, role_id=role_id) }}" method="post">
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-danger">删除</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
