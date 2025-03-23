@@ -350,7 +350,7 @@ def sync_guild_members(guild_id):
 def sync_guild_roles(guild_id):
     """同步Discord服务器角色"""
     # 检查用户是否已连接Discord
-    if not current_user.discord_id or not current_user.discord_token_info:
+    if not current_user.discord_id or not current_user.discord_access_token:
         flash('请先连接您的Discord账号', 'warning')
         return redirect(url_for('discord.connect'))
     
@@ -429,7 +429,7 @@ def sync_guild_roles(guild_id):
 def create_guild_role(guild_id):
     """创建Discord服务器角色"""
     # 检查用户是否已连接Discord
-    if not current_user.discord_id or not current_user.discord_token_info:
+    if not current_user.discord_id or not current_user.discord_access_token:
         flash('请先连接您的Discord账号', 'warning')
         return redirect(url_for('discord.connect'))
     
@@ -489,7 +489,7 @@ def create_guild_role(guild_id):
 def delete_guild_role(guild_id, role_id):
     """删除Discord服务器角色"""
     # 检查用户是否已连接Discord
-    if not current_user.discord_id or not current_user.discord_token_info:
+    if not current_user.discord_id or not current_user.discord_access_token:
         flash('请先连接您的Discord账号', 'warning')
         return redirect(url_for('discord.connect'))
     
@@ -534,7 +534,7 @@ def delete_guild_role(guild_id, role_id):
 def update_guild_role(guild_id, role_id):
     """更新Discord服务器角色"""
     # 检查用户是否已连接Discord
-    if not current_user.discord_id or not current_user.discord_token_info:
+    if not current_user.discord_id or not current_user.discord_access_token:
         flash('请先连接您的Discord账号', 'warning')
         return redirect(url_for('discord.connect'))
     
