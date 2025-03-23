@@ -476,7 +476,10 @@ def members(group_id):
             from app.routes.discord import DiscordClient
             
             # 始终使用Bot令牌获取角色信息，这样更可靠
-            roles_map = DiscordClient.get_guild_roles(None, group.discord_id)
+            access_token = None
+            if current_user.is_authenticated and current_user.discord_id and hasattr(current_user, 'discord_access_token'):
+                access_token = current_user.discord_access_token
+            roles_map = DiscordClient.get_guild_roles(access_token, group.discord_id)
             
             # 创建角色ID到名称的映射
             for role_id, role_data in roles_map.items():
@@ -804,12 +807,11 @@ def roles(group_id):
             from app.routes.discord import DiscordClient
             
             # 获取当前用户的Discord访问令牌
-            token_info = None
-            if current_user.is_authenticated and current_user.discord_id:
-                token_info = current_user.discord_token_info
+            access_token = None
+            if current_user.is_authenticated and current_user.discord_id and hasattr(current_user, 'discord_access_token'):
+                access_token = current_user.discord_access_token
             
             # 使用Bot令牌或用户令牌获取角色信息
-            access_token = token_info.get('access_token') if token_info else None
             roles_map = DiscordClient.get_guild_roles(access_token, group.discord_id)
             
             # 检查是否有机器人权限
@@ -882,12 +884,11 @@ def role_members(group_id, role_id):
             from app.routes.discord import DiscordClient
             
             # 获取当前用户的Discord访问令牌
-            token_info = None
-            if current_user.is_authenticated and current_user.discord_id:
-                token_info = current_user.discord_token_info
+            access_token = None
+            if current_user.is_authenticated and current_user.discord_id and hasattr(current_user, 'discord_access_token'):
+                access_token = current_user.discord_access_token
             
             # 使用Bot令牌或用户令牌获取角色信息
-            access_token = token_info.get('access_token') if token_info else None
             roles_map = DiscordClient.get_guild_roles(access_token, group.discord_id)
             
             # 获取角色名称
