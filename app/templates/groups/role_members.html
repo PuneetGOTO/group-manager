@@ -106,7 +106,7 @@
                                             提升为管理员
                                         </a>
                                         {% elif member.get_role_in_group(group.id) == 'admin' and current_user.id == group.owner_id %}
-                                        <a href="{{ url_for('groups.demote_from_admin', group_id=group.id, user_id=member.id) }}" class="btn btn-sm btn-outline-warning">
+                                        <a href="{{ url_for('groups.remove_admin', group_id=group.id, user_id=member.id) }}" class="btn btn-sm btn-outline-warning">
                                             取消管理员
                                         </a>
                                         {% endif %}
