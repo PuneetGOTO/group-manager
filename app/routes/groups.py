@@ -4,6 +4,7 @@ from app.models import Group, Post, Comment, Event, User, group_members, event_p
 from app import db
 from datetime import datetime
 import os
+from sqlalchemy import func
 
 groups_bp = Blueprint('groups', __name__)
 
