@@ -119,5 +119,19 @@ class User(db.Model, UserMixin):
         db.session.execute(stmt)
         db.session.commit()
     
+    @property
+    def discord_token_info(self):
+        """临时兼容旧代码，将discord_token_info映射到discord_access_token"""
+        # 记录访问日志，帮助识别哪里在使用这个旧属性
+        from flask import current_app
+        import traceback
+        stack = traceback.extract_stack()
+        caller = stack[-2]  # 调用者的信息
+        current_app.logger.warning(
+            f"发现对已弃用的discord_token_info属性的访问！"
+            f"位置: {caller.filename}:{caller.lineno} in {caller.name}"
+        )
+        return self.discord_access_token
+    
     def __repr__(self):
         return f'<User {self.username}>'
