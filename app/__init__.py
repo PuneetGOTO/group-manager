@@ -48,6 +48,14 @@ def create_app():
     from app.routes.user import user_bp
     from app.routes.discord import discord_bp
     
+    # 注册自定义模板过滤器
+    @app.template_filter('bitwise_and')
+    def bitwise_and(value, other):
+        """执行位与操作"""
+        if value is None or other is None:
+            return False
+        return bool(int(value) & int(other))
+    
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(groups_bp, url_prefix='/groups')

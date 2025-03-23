@@ -103,13 +103,13 @@
                                 <td>{{ role_info.color if role_info.color else "无" }}</td>
                                 <td>{{ role_info.member_count }}</td>
                                 <td>
-                                    {% if role_info.permissions & 8 %}
+                                    {% if role_info.permissions is not none and (role_info.permissions | bitwise_and(8)) %}
                                     <span class="badge bg-danger">管理员</span>
                                     {% endif %}
-                                    {% if role_info.permissions & 32 %}
+                                    {% if role_info.permissions is not none and (role_info.permissions | bitwise_and(32)) %}
                                     <span class="badge bg-warning">踢出成员</span>
                                     {% endif %}
-                                    {% if role_info.permissions & 4 %}
+                                    {% if role_info.permissions is not none and (role_info.permissions | bitwise_and(4)) %}
                                     <span class="badge bg-info">管理频道</span>
                                     {% endif %}
                                 </td>
