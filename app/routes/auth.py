@@ -30,14 +30,18 @@ def login():
             flash('该账户已被停用，请联系管理员', 'warning')
             return render_template('auth/login.html')
         
-        # 登录用户 - 默认启用记住我功能，除非用户明确取消勾选
-        login_user(user, remember=remember, duration=timedelta(days=30))
+        # 登录用户 - 使用已配置的记住我功能
+        login_user(user, remember=remember)
         
         # 更新最后访问时间
         user.last_seen = datetime.utcnow()
         db.session.commit()
         
-        flash('登录成功！', 'success')
+        # 提供更具体的成功消息
+        if remember:
+            flash('登录成功！系统将记住您的登录状态，下次访问无需重新登录。', 'success')
+        else:
+            flash('登录成功！', 'success')
         
         # 重定向到登录前的页面或首页
         next_page = request.args.get('next')

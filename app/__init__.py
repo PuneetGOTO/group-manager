@@ -2,9 +2,9 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from datetime import timedelta
 import os
 from dotenv import load_dotenv
-from datetime import timedelta
 
 # 加载环境变量
 load_dotenv()
@@ -24,10 +24,10 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # 记住我功能配置 - 设置为30天
-    app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
-    app.config['REMEMBER_COOKIE_SECURE'] = os.getenv('PRODUCTION', 'False').lower() == 'true'  # 只在生产环境设为True
-    app.config['REMEMBER_COOKIE_HTTPONLY'] = True
-    app.config['REMEMBER_COOKIE_REFRESH_EACH_REQUEST'] = True
+    app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=60)  # 记住登录状态60天
+    app.config['REMEMBER_COOKIE_SECURE'] = not app.debug  # 生产环境下使用HTTPS
+    app.config['REMEMBER_COOKIE_HTTPONLY'] = True  # 防止客户端JavaScript访问
+    app.config['REMEMBER_COOKIE_REFRESH_EACH_REQUEST'] = True  # 每次请求刷新cookie
     app.config['REMEMBER_COOKIE_NAME'] = 'remember_token'  # 自定义cookie名称
     app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'  # 允许从外部链接进入时保持登录状态
     
