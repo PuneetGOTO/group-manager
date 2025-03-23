@@ -24,6 +24,11 @@
                     <span class="ms-3">
                         <i class="fas fa-calendar-alt me-1"></i> 创建于 {{ group.created_at.strftime('%Y-%m-%d') }}
                     </span>
+                    {% if group.discord_id %}
+                    <span class="ms-3">
+                        <i class="fab fa-discord me-1"></i> Discord服务器
+                    </span>
+                    {% endif %}
                 </p>
                 <p>{{ group.description }}</p>
             </div>
@@ -54,6 +59,16 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Discord同步按钮 - 仅对从Discord导入的群组且当前用户是群组所有者显示 -->
+        {% if group.discord_id and current_user.id == group.owner_id %}
+        <div class="mt-3">
+            <a href="{{ url_for('discord.sync_guild_members', guild_id=group.discord_id) }}" class="btn btn-primary">
+                <i class="fab fa-discord me-1"></i> 同步Discord成员
+            </a>
+            <small class="text-muted ms-2">点击此按钮将从Discord服务器同步成员到本群组</small>
+        </div>
+        {% endif %}
     </div>
 </div>
 

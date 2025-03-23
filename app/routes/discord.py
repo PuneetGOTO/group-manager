@@ -187,3 +187,96 @@ def import_guild(guild_id):
     except Exception as e:
         flash(f'导入Discord服务器失败: {str(e)}', 'danger')
         return redirect(url_for('discord.guilds'))
+
+@discord_bp.route('/guild/<guild_id>/sync_members')
+@login_required
+def sync_guild_members(guild_id):
+    """同步Discord服务器成员到群组"""
+    if not current_user.is_connected_to_discord():
+        flash('请先连接Discord账号', 'warning')
+        return redirect(url_for('user.settings'))
+    
+    # 获取关联的群组
+    group = Group.query.filter_by(discord_id=guild_id).first()
+    if not group:
+        flash('未找到关联的群组', 'danger')
+        return redirect(url_for('discord.guilds'))
+    
+    # 检查权限
+    if group.owner_id != current_user.id:
+        flash('只有群组创建者可以同步成员', 'warning')
+        return redirect(url_for('groups.view', group_id=group.id))
+    
+    try:
+        # 获取Discord服务器成员
+        members = DiscordClient.get_guild_members(
+            current_user.discord_access_token,
+            guild_id
+        )
+        
+        sync_count = 0
+        for member in members:
+            user_data = member.get('user', {})
+            discord_id = user_data.get('id')
+            
+            if not discord_id:
+                continue
+                
+            # 尝试查找已有用户
+            user = User.query.filter_by(discord_id=discord_id).first()
+            
+            # 如果没有找到，创建一个新用户
+            if not user:
+                # 创建用户名：如果有辨别符号，使用username#discriminator，否则只用username
+                discord_username = user_data.get('username')
+                discriminator = user_data.get('discriminator')
+                display_name = f"{discord_username}#{discriminator}" if discriminator else discord_username
+                
+                # 为Discord用户生成随机密码
+                import secrets
+                random_password = secrets.token_hex(16)
+                
+                # 创建新用户
+                user = User(
+                    username=f"discord_{discord_id}",
+                    email=f"discord_{discord_id}@placeholder.com",  # 占位邮箱
+                    password=random_password,  # 设置随机密码
+                    discord_id=discord_id,
+                    discord_username=display_name,
+                    discord_avatar=f"https://cdn.discordapp.com/avatars/{discord_id}/{user_data.get('avatar')}.png" if user_data.get('avatar') else None
+                )
+                db.session.add(user)
+                db.session.flush()  # 确保用户有ID
+            
+            # 检查用户是否已经在群组中
+            stmt = db.select(group_members).where(
+                (group_members.c.user_id == user.id) & 
+                (group_members.c.group_id == group.id)
+            )
+            existing_membership = db.session.execute(stmt).first()
+            
+            # 如果不在群组中，添加用户到群组
+            if not existing_membership:
+                # 判断是否为服务器所有者/管理员
+                is_admin = (member.get('roles') and any(r in ['owner', 'administrator'] for r in member.get('roles')))
+                role = 'admin' if is_admin else 'member'
+                
+                # 添加到群组
+                stmt = group_members.insert().values(
+                    user_id=user.id,
+                    group_id=group.id,
+                    role=role,
+                    joined_at=datetime.utcnow()
+                )
+                db.session.execute(stmt)
+                sync_count += 1
+        
+        db.session.commit()
+        flash(f'成功同步了 {sync_count} 名成员', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f'同步成员失败: {str(e)}', 'danger')
+        current_app.logger.error(f"同步Discord成员错误: {str(e)}")
+    
+    return redirect(url_for('groups.view', group_id=group.id))

@@ -122,22 +122,32 @@ class DiscordClient:
             raise
     
     @staticmethod
-    def get_guild_members(guild_id):
-        """获取服务器成员列表 (需要Bot令牌)"""
-        if not DISCORD_BOT_TOKEN:
-            raise Exception("缺少Discord机器人令牌")
-            
+    def get_guild_members(access_token, guild_id):
+        """获取服务器成员列表 (使用用户访问令牌或机器人令牌)"""
+        # 尝试使用用户访问令牌
         url = f"{DISCORD_API_ENDPOINT}/guilds/{guild_id}/members?limit=1000"
+        
+        # 首先尝试使用用户访问令牌
         headers = {
-            'Authorization': f'Bot {DISCORD_BOT_TOKEN}'
+            'Authorization': f'Bearer {access_token}'
         }
         
         response = requests.get(url, headers=headers)
         
+        # 如果使用用户令牌失败，尝试使用机器人令牌
+        if response.status_code != 200 and DISCORD_BOT_TOKEN:
+            current_app.logger.info(f"使用用户令牌获取成员失败，尝试使用机器人令牌: {response.status_code}")
+            headers = {
+                'Authorization': f'Bot {DISCORD_BOT_TOKEN}'
+            }
+            response = requests.get(url, headers=headers)
+        
         if response.status_code == 200:
             return response.json()
         else:
-            raise Exception(f"获取服务器成员列表失败: {response.status_code} - {response.text}")
+            error_msg = f"获取服务器成员列表失败: {response.status_code} - {response.text}"
+            current_app.logger.error(error_msg)
+            raise Exception(error_msg)
     
     @staticmethod
     def refresh_token(refresh_token):
