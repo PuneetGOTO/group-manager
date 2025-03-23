@@ -222,6 +222,11 @@ def sync_guild_members(guild_id):
             guild_id
         )
         
+        # 检查是否成功获取到成员
+        if not members:
+            flash('未能获取到Discord服务器成员，请确保机器人拥有正确的权限', 'warning')
+            return redirect(url_for('groups.view', group_id=group.id))
+        
         sync_count = 0
         for member in members:
             user_data = member.get('user', {})
@@ -394,11 +399,39 @@ class DiscordClient:
     @staticmethod
     def get_guild_members(access_token, guild_id):
         """获取Discord服务器成员列表"""
-        headers = {
-            'Authorization': f'Bearer {access_token}'
-        }
-        response = requests.get(f"{DiscordClient.DISCORD_API_ENDPOINT}/guilds/{guild_id}/members", headers=headers)
-        return response.json()
+        # 优先使用Bot令牌，这是获取服务器成员唯一可靠的方式
+        if DiscordClient.DISCORD_BOT_TOKEN:
+            headers = {
+                'Authorization': f'Bot {DiscordClient.DISCORD_BOT_TOKEN}'
+            }
+        else:
+            headers = {
+                'Authorization': f'Bearer {access_token}'
+            }
+        
+        try:
+            current_app.logger.info(f"正在获取Discord服务器成员: {guild_id}")
+            response = requests.get(f"{DiscordClient.DISCORD_API_ENDPOINT}/guilds/{guild_id}/members?limit=1000", headers=headers)
+            response.raise_for_status()  # 这会在HTTP错误时抛出异常
+            
+            members = response.json()
+            current_app.logger.info(f"成功获取Discord成员: {len(members)}个")
+            return members
+        except requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code
+            error_message = f"获取Discord成员失败 - HTTP {status_code}"
+            
+            if status_code == 401:
+                error_message += ": 认证失败，请检查Bot令牌是否有效"
+            elif status_code == 403:
+                error_message += ": 权限不足，请确保Bot拥有查看成员的权限"
+            
+            current_app.logger.error(error_message)
+            # 返回空列表而不是抛出异常，这样同步过程不会完全中断
+            return []
+        except Exception as e:
+            current_app.logger.error(f"获取Discord成员错误: {str(e)}")
+            return []
 
     @staticmethod
     def get_guild_roles(access_token, guild_id):
