@@ -431,37 +431,88 @@ def delete(group_id):
 @groups_bp.route('/<int:group_id>/members')
 @login_required
 def members(group_id):
-    """查看群组成员"""
+    """群组成员列表"""
     group = Group.query.get_or_404(group_id)
     
-    # 非公开群组需要成员才能查看
-    if not group.is_public and (not current_user.is_authenticated or group not in current_user.groups):
-        flash('您没有权限查看该群组', 'warning')
-        return redirect(url_for('groups.index'))
+    # 检查是否登录和群组成员权限
+    if not current_user.is_authenticated or (not group.is_public and group not in current_user.groups):
+        flash('您没有查看这个群组的权限', 'warning')
+        return redirect(url_for('groups.list'))
     
-    # 获取所有成员及其角色
-    members_query = db.session.query(User, group_members.c.role).join(
-        group_members, User.id == group_members.c.user_id
-    ).filter(group_members.c.group_id == group_id).all()
+    # 搜索功能
+    search = request.args.get('search', '')
+    if search:
+        members = group.user_members.filter(User.username.ilike(f'%{search}%')).all()
+    else:
+        members = group.user_members.all()
     
-    # 提取User对象和角色信息
-    members = []
+    # 读取成员角色
     members_roles = {}
-    for user, role in members_query:
-        members.append(user)
-        members_roles[user.id] = role
+    discord_roles = {}  # 存储Discord角色信息
+    discord_role_names = {}  # 角色ID到角色名称的映射
     
-    # 检查当前用户是否为管理员
-    is_admin = False
-    if current_user.is_authenticated and group in current_user.groups:
-        user_role = current_user.get_role_in_group(group_id)
-        is_admin = (user_role == 'admin' or group.owner_id == current_user.id)
+    for member in members:
+        # 获取群组角色
+        members_roles[member.id] = member.get_role_in_group(group.id)
+        
+        # 获取Discord角色 - 从group_members表中读取
+        if group.discord_id:
+            stmt = db.select(group_members.c.discord_roles).where(
+                (group_members.c.user_id == member.id) & 
+                (group_members.c.group_id == group.id)
+            )
+            result = db.session.execute(stmt).first()
+            
+            if result and result[0]:  # 如果有Discord角色数据
+                discord_roles[member.id] = result[0].split(',')
+            else:
+                discord_roles[member.id] = []
+    
+    # 获取Discord角色名称映射
+    if group.discord_id and any(discord_roles.values()):
+        try:
+            # 导入Discord客户端
+            from app.routes.discord import DiscordClient
+            
+            # 获取当前用户的Discord访问令牌
+            token_info = None
+            if current_user.is_authenticated and current_user.discord_id:
+                token_info = current_user.discord_token_info
+            
+            # 使用Bot令牌或用户令牌获取角色信息
+            access_token = token_info.get('access_token') if token_info else None
+            roles_map = DiscordClient.get_guild_roles(access_token, group.discord_id)
+            
+            # 创建角色ID到名称的映射
+            for role_id, role_data in roles_map.items():
+                # 存储角色名称和颜色信息
+                discord_role_names[role_id] = {
+                    'name': role_data.get('name', f'未知角色({role_id})'),
+                    'color': f"#{role_data.get('color', 0):06x}" if role_data.get('color', 0) > 0 else None
+                }
+                
+        except Exception as e:
+            current_app.logger.error(f"获取Discord角色名称出错: {str(e)}")
+            # 出错时使用ID作为名称
+            for member_id, role_ids in discord_roles.items():
+                for role_id in role_ids:
+                    if role_id not in discord_role_names:
+                        discord_role_names[role_id] = {'name': f'角色({role_id})', 'color': None}
+    
+    # 判断当前用户是否为管理员
+    is_admin = current_user.is_authenticated and (
+        current_user.id == group.owner_id or 
+        current_user.get_role_in_group(group.id) == 'admin'
+    )
     
     return render_template('groups/members.html', 
-                          group=group, 
+                          group=group,
                           members=members,
                           members_roles=members_roles,
-                          is_admin=is_admin)
+                          discord_roles=discord_roles,
+                          discord_role_names=discord_role_names,
+                          is_admin=is_admin,
+                          search=search)
 
 @groups_bp.route('/<int:group_id>/invite')
 @login_required

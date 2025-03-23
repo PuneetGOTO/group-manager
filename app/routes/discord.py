@@ -189,15 +189,16 @@ def import_guild(guild_id):
         flash(f'导入Discord服务器失败: {str(e)}', 'danger')
         return redirect(url_for('discord.guilds'))
 
-@discord_bp.route('/guild/<guild_id>/sync_members')
+@discord_bp.route('/sync-guild-members/<guild_id>')
 @login_required
 def sync_guild_members(guild_id):
-    """同步Discord服务器成员到群组"""
-    if not current_user.is_connected_to_discord():
-        flash('请先连接Discord账号', 'warning')
-        return redirect(url_for('user.settings'))
+    """同步Discord服务器成员到本地群组"""
+    # 检查用户是否已连接Discord
+    if not current_user.discord_id:
+        flash('请先连接您的Discord账号', 'warning')
+        return redirect(url_for('discord.connect'))
     
-    # 获取关联的群组
+    # 查找对应的本地群组
     group = Group.query.filter_by(discord_id=guild_id).first()
     if not group:
         flash('未找到关联的群组', 'danger')
@@ -209,6 +210,12 @@ def sync_guild_members(guild_id):
         return redirect(url_for('groups.view', group_id=group.id))
     
     try:
+        # 获取Discord服务器角色列表
+        roles_map = DiscordClient.get_guild_roles(
+            current_user.discord_access_token,
+            guild_id
+        )
+        
         # 获取Discord服务器成员
         members = DiscordClient.get_guild_members(
             current_user.discord_access_token,
@@ -264,22 +271,28 @@ def sync_guild_members(guild_id):
             )
             existing_membership = db.session.execute(stmt).first()
             
+            # 将Discord角色ID转换为角色名并存储
+            discord_roles = ','.join([str(role_id) for role_id in role_ids]) if role_ids else ''
+            
+            # 是否为服务器所有者或管理员
+            is_owner = member.get('owner', False)
+            is_admin = False
+            
+            # 检查用户角色中是否包含管理员权限
+            for role_id in role_ids:
+                role_id_str = str(role_id)
+                if role_id_str in roles_map:
+                    role_data = roles_map[role_id_str]
+                    # Discord权限中，管理员权限是8（或者包含管理员关键字）
+                    if role_data.get('permissions', 0) & 8 or 'admin' in role_data.get('name', '').lower():
+                        is_admin = True
+                        break
+                        
+            # 设置用户在群组中的角色
+            role = 'admin' if (is_owner or is_admin) else 'member'
+            
             # 如果不在群组中，添加用户到群组
             if not existing_membership:
-                # 判断角色 - 更复杂的角色处理
-                is_owner = member.get('owner', False)
-                is_admin = False
-                
-                # 将Discord角色ID转换为角色名并存储
-                discord_roles = ','.join([str(role_id) for role_id in role_ids]) if role_ids else ''
-                
-                # 检查是否为管理员 - 根据身份组判断
-                if discord_roles and any(r in ['owner', 'administrator'] for r in role_ids):
-                    is_admin = True
-                
-                # 设置用户在群组中的角色
-                role = 'admin' if (is_owner or is_admin) else 'member'
-                
                 # 添加到群组，同时存储Discord角色信息
                 stmt = group_members.insert().values(
                     user_id=user.id,
@@ -292,17 +305,17 @@ def sync_guild_members(guild_id):
                 sync_count += 1
             else:
                 # 更新现有成员的角色信息
-                discord_roles = ','.join([str(role_id) for role_id in role_ids]) if role_ids else ''
                 stmt = group_members.update().where(
                     (group_members.c.user_id == user.id) & 
                     (group_members.c.group_id == group.id)
                 ).values(
-                    discord_roles=discord_roles
+                    discord_roles=discord_roles,
+                    role=role  # 更新成员在平台中的角色
                 )
                 db.session.execute(stmt)
         
         db.session.commit()
-        flash(f'成功同步了 {sync_count} 名成员', 'success')
+        flash(f'成功同步了 {sync_count} 名成员，所有成员角色已更新', 'success')
     
     except Exception as e:
         db.session.rollback()
@@ -318,3 +331,100 @@ def sync_guild_members(guild_id):
             flash(f'同步成员失败: {error_message}', 'danger')
     
     return redirect(url_for('groups.view', group_id=group.id))
+
+class DiscordClient:
+    DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
+    DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
+
+    @staticmethod
+    def get_auth_url(state):
+        """获取Discord授权页面的URL"""
+        params = {
+            'client_id': os.environ.get('DISCORD_CLIENT_ID'),
+            'redirect_uri': os.environ.get('DISCORD_REDIRECT_URI'),
+            'response_type': 'code',
+            'scope': 'identify guilds',
+            'state': state
+        }
+        return f"{DiscordClient.DISCORD_API_ENDPOINT}/oauth2/authorize?{requests.compat.urlencode(params)}"
+
+    @staticmethod
+    def exchange_code(code):
+        """交换授权码获取访问令牌"""
+        params = {
+            'client_id': os.environ.get('DISCORD_CLIENT_ID'),
+            'client_secret': os.environ.get('DISCORD_CLIENT_SECRET'),
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': os.environ.get('DISCORD_REDIRECT_URI')
+        }
+        response = requests.post(f"{DiscordClient.DISCORD_API_ENDPOINT}/oauth2/token", data=params)
+        return response.json()
+
+    @staticmethod
+    def get_user_info(access_token):
+        """获取Discord用户信息"""
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+        response = requests.get(f"{DiscordClient.DISCORD_API_ENDPOINT}/users/@me", headers=headers)
+        return response.json()
+
+    @staticmethod
+    def refresh_token(refresh_token):
+        """刷新访问令牌"""
+        params = {
+            'client_id': os.environ.get('DISCORD_CLIENT_ID'),
+            'client_secret': os.environ.get('DISCORD_CLIENT_SECRET'),
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token
+        }
+        response = requests.post(f"{DiscordClient.DISCORD_API_ENDPOINT}/oauth2/token", data=params)
+        return response.json()
+
+    @staticmethod
+    def get_user_guilds(access_token):
+        """获取用户的Discord服务器列表"""
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+        response = requests.get(f"{DiscordClient.DISCORD_API_ENDPOINT}/users/@me/guilds", headers=headers)
+        return response.json()
+
+    @staticmethod
+    def get_guild_members(access_token, guild_id):
+        """获取Discord服务器成员列表"""
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+        response = requests.get(f"{DiscordClient.DISCORD_API_ENDPOINT}/guilds/{guild_id}/members", headers=headers)
+        return response.json()
+
+    @staticmethod
+    def get_guild_roles(access_token, guild_id):
+        """获取Discord服务器的所有角色信息"""
+        url = f"{DiscordClient.DISCORD_API_ENDPOINT}/guilds/{guild_id}/roles"
+        
+        # 优先使用bot令牌
+        if DiscordClient.DISCORD_BOT_TOKEN:
+            headers = {
+                'Authorization': f'Bot {DiscordClient.DISCORD_BOT_TOKEN}'
+            }
+        else:
+            headers = {
+                'Authorization': f'Bearer {access_token}'
+            }
+        
+        try:
+            current_app.logger.info(f"正在获取Discord服务器角色: {url}")
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            roles = response.json()
+            
+            # 将角色列表转换为ID到角色名称的映射
+            roles_map = {str(role['id']): role for role in roles}
+            current_app.logger.info(f"成功获取Discord角色: {len(roles)}个")
+            return roles_map
+        except Exception as e:
+            current_app.logger.error(f"获取Discord角色错误: {str(e)}")
+            raise e

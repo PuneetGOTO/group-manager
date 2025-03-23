@@ -86,5 +86,38 @@ class User(db.Model, UserMixin):
         result = db.session.execute(stmt).first()
         return result[0] if result else None
         
+    def get_discord_roles(self, group_id):
+        """获取用户在特定群组中的Discord角色ID列表"""
+        stmt = db.select(group_members.c.discord_roles).where(
+            (group_members.c.user_id == self.id) & 
+            (group_members.c.group_id == group_id)
+        )
+        result = db.session.execute(stmt).first()
+        
+        if result and result[0]:
+            return result[0].split(',')
+        return []
+    
+    def update_discord_roles(self, group_id, roles):
+        """更新用户在特定群组中的Discord角色
+        
+        Args:
+            group_id: 群组ID
+            roles: 角色ID列表或逗号分隔的字符串
+        """
+        if isinstance(roles, list):
+            roles_str = ','.join(roles)
+        else:
+            roles_str = roles
+            
+        # 更新用户角色
+        stmt = db.update(group_members).where(
+            (group_members.c.user_id == self.id) & 
+            (group_members.c.group_id == group_id)
+        ).values(discord_roles=roles_str)
+        
+        db.session.execute(stmt)
+        db.session.commit()
+    
     def __repr__(self):
         return f'<User {self.username}>'
