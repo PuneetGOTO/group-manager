@@ -30,6 +30,28 @@ def check_group_admin(group_id):
     flash('您没有权限管理此群组的Dyno功能', 'danger')
     return False
 
+# 辅助函数：获取Discord频道列表
+def get_discord_channels(guild_id):
+    """获取Discord服务器的频道列表"""
+    try:
+        discord_client = DiscordClient()
+        channels = discord_client.get_guild_channels(guild_id)
+        return channels
+    except Exception as e:
+        current_app.logger.error(f"获取Discord频道时出错: {str(e)}")
+        return []
+
+# 辅助函数：获取Discord角色列表
+def get_discord_roles(guild_id):
+    """获取Discord服务器的角色列表"""
+    try:
+        discord_client = DiscordClient()
+        roles = discord_client.get_guild_roles(guild_id)
+        return roles
+    except Exception as e:
+        current_app.logger.error(f"获取Discord角色时出错: {str(e)}")
+        return []
+
 # Dyno主页 - 显示所有可用功能
 @dyno_bp.route('/group/<int:group_id>/dyno')
 @login_required

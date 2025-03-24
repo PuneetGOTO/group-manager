@@ -174,6 +174,60 @@ class DiscordClient:
             raise Exception(error_msg)
     
     @staticmethod
+    def get_guild_channels(guild_id):
+        """获取Discord服务器的频道列表"""
+        url = f"{DISCORD_API_ENDPOINT}/guilds/{guild_id}/channels"
+        
+        # 使用机器人令牌访问
+        headers = {
+            'Authorization': f'Bot {DISCORD_BOT_TOKEN}'
+        }
+        
+        try:
+            current_app.logger.debug(f"正在请求Discord服务器频道列表: {url}")
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                channels = response.json()
+                # 按类型和名称排序
+                channels.sort(key=lambda x: (x.get('type', 0), x.get('name', '')))
+                return channels
+            else:
+                error_msg = f"获取服务器频道列表失败: {response.status_code} - {response.text[:100]}"
+                current_app.logger.error(error_msg)
+                return []
+        except Exception as e:
+            current_app.logger.error(f"获取Discord服务器频道异常: {str(e)}")
+            return []
+    
+    @staticmethod
+    def get_guild_roles(guild_id):
+        """获取Discord服务器的角色列表"""
+        url = f"{DISCORD_API_ENDPOINT}/guilds/{guild_id}/roles"
+        
+        # 使用机器人令牌访问
+        headers = {
+            'Authorization': f'Bot {DISCORD_BOT_TOKEN}'
+        }
+        
+        try:
+            current_app.logger.debug(f"正在请求Discord服务器角色列表: {url}")
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                roles = response.json()
+                # 按位置排序（Discord中角色的显示顺序）
+                roles.sort(key=lambda x: x.get('position', 0), reverse=True)
+                return roles
+            else:
+                error_msg = f"获取服务器角色列表失败: {response.status_code} - {response.text[:100]}"
+                current_app.logger.error(error_msg)
+                return []
+        except Exception as e:
+            current_app.logger.error(f"获取Discord服务器角色异常: {str(e)}")
+            return []
+    
+    @staticmethod
     def refresh_token(refresh_token):
         """刷新访问令牌"""
         from .config import DISCORD_TOKEN_URL
