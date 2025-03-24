@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+
+{% block title %}命令系统 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.command_categories', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-list me-2"></i> 命令系统
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-list text-info me-2"></i> 命令系统
+                </h2>
+            </div>
+            
+            <!-- 命令分类选择器 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="commandTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="manager-tab" data-bs-toggle="tab" data-bs-target="#manager" type="button" role="tab">管理员</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="mod-tab" data-bs-toggle="tab" data-bs-target="#mod" type="button" role="tab">版主</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab">信息</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="fun-tab" data-bs-toggle="tab" data-bs-target="#fun" type="button" role="tab">娱乐</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="moderator-tab" data-bs-toggle="tab" data-bs-target="#moderator" type="button" role="tab">管理</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles" type="button" role="tab">角色</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tags-tab" data-bs-toggle="tab" data-bs-target="#tags" type="button" role="tab">标签</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="giveaways-tab" data-bs-toggle="tab" data-bs-target="#giveaways" type="button" role="tab">赠品</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="game-tab" data-bs-toggle="tab" data-bs-target="#game" type="button" role="tab">游戏</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="commandTabsContent">
+                        <!-- 管理员命令 -->
+                        <div class="tab-pane fade show active" id="manager" role="tabpanel" aria-labelledby="manager-tab">
+                            <div class="row g-3">
+                                {% for command in manager_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="manager"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有管理员命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 版主命令 -->
+                        <div class="tab-pane fade" id="mod" role="tabpanel" aria-labelledby="mod-tab">
+                            <div class="row g-3">
+                                {% for command in mod_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="mod"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有版主命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 信息命令 -->
+                        <div class="tab-pane fade" id="info" role="tabpanel" aria-labelledby="info-tab">
+                            <div class="row g-3">
+                                {% for command in info_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="info"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有信息命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 娱乐命令 -->
+                        <div class="tab-pane fade" id="fun" role="tabpanel" aria-labelledby="fun-tab">
+                            <div class="row g-3">
+                                {% for command in fun_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="fun"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有娱乐命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 管理命令 -->
+                        <div class="tab-pane fade" id="moderator" role="tabpanel" aria-labelledby="moderator-tab">
+                            <div class="row g-3">
+                                {% for command in moderator_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="moderator"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有管理命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 角色命令 -->
+                        <div class="tab-pane fade" id="roles" role="tabpanel" aria-labelledby="roles-tab">
+                            <div class="row g-3">
+                                {% for command in roles_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="roles"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有角色命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 标签命令 -->
+                        <div class="tab-pane fade" id="tags" role="tabpanel" aria-labelledby="tags-tab">
+                            <div class="row g-3">
+                                {% for command in tags_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="tags"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有标签命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 赠品命令 -->
+                        <div class="tab-pane fade" id="giveaways" role="tabpanel" aria-labelledby="giveaways-tab">
+                            <div class="row g-3">
+                                {% for command in giveaways_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="giveaways"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有赠品命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 游戏命令 -->
+                        <div class="tab-pane fade" id="game" role="tabpanel" aria-labelledby="game-tab">
+                            <div class="row g-3">
+                                {% for command in game_commands %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ command.name }}</h6>
+                                            <p class="card-text text-muted small">{{ command.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <code>{{ command.usage }}</code>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input command-toggle" type="checkbox" 
+                                                           data-command-id="{{ command.id }}" 
+                                                           data-command-category="game"
+                                                           {% if command.enabled %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12 text-center py-3">
+                                    <p class="text-muted">没有游戏命令可用</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-end">
+                    <button type="button" class="btn btn-outline-secondary me-2" id="disableAllBtn">禁用所有</button>
+                    <button type="button" class="btn btn-primary" id="saveCommandsBtn">保存设置</button>
+                </div>
+            </div>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">命令系统使用说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于命令系统</h6>
+                        <p class="mb-0">Dyno机器人提供多种命令类别，包括管理员、版主、信息、娱乐等功能。您可以启用或禁用特定的命令，以满足服务器的需求。</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>使用方法：</h6>
+                        <ol>
+                            <li>浏览不同选项卡查看各类命令</li>
+                            <li>使用开关按钮启用或禁用特定命令</li>
+                            <li>点击"保存设置"按钮应用更改</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <h6>提示：</h6>
+                        <ul class="mb-0">
+                            <li>启用过多命令可能会导致频道混乱</li>
+                            <li>根据服务器类型和需求选择适当的命令</li>
+                            <li>管理员和版主命令通常需要特定权限才能使用</li>
+                            <li>所有命令都使用前缀（默认为"!"），例如 !help</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const saveCommandsBtn = document.getElementById('saveCommandsBtn');
+        const disableAllBtn = document.getElementById('disableAllBtn');
+        const toggles = document.querySelectorAll('.command-toggle');
+        
+        // 保存命令设置
+        if (saveCommandsBtn) {
+            saveCommandsBtn.addEventListener('click', function() {
+                const commands = [];
+                
+                toggles.forEach(toggle => {
+                    commands.push({
+                        id: toggle.dataset.commandId,
+                        category: toggle.dataset.commandCategory,
+                        enabled: toggle.checked
+                    });
+                });
+                
+                // 发送AJAX请求保存设置
+                fetch(`{{ url_for('dyno.save_command_settings', group_id=group.id) }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({commands: commands})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('命令设置已保存');
+                    } else {
+                        alert('保存设置失败: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('发生错误，请稍后再试');
+                });
+            });
+        }
+        
+        // 禁用所有命令
+        if (disableAllBtn) {
+            disableAllBtn.addEventListener('click', function() {
+                if (confirm('确定要禁用所有命令吗？')) {
+                    toggles.forEach(toggle => {
+                        toggle.checked = false;
+                    });
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

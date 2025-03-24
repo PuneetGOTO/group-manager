@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+
+{% block title %}Dyno 功能 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 群组信息 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ url_for('static', filename=group.avatar) }}" class="rounded me-3" style="width: 64px; height: 64px;" alt="{{ group.name }}">
+                        <div>
+                            <h4 class="mb-1">{{ group.name }}</h4>
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-link me-1"></i> 已连接 Discord 服务器: 
+                                <span class="badge bg-discord">{{ group.discord_id }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Dyno 功能卡片 -->
+            <div class="row row-cols-1 row-cols-md-3 g-4 mb-4">
+                <!-- 自动审核 -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-shield-alt text-primary me-2"></i> 自动审核
+                                </h5>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="automodSwitch" {% if automod.enabled %}checked{% endif %} disabled>
+                                </div>
+                            </div>
+                            <p class="card-text">保护服务器免受不良内容、垃圾信息和滥用影响的自动化工具。</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="btn btn-sm btn-outline-primary w-100">配置</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 欢迎消息 -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-door-open text-success me-2"></i> 欢迎消息
+                                </h5>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="welcomeSwitch" {% if welcome.welcome_enabled %}checked{% endif %} disabled>
+                                </div>
+                            </div>
+                            <p class="card-text">自定义欢迎和告别消息，给新成员留下良好的第一印象。</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="btn btn-sm btn-outline-primary w-100">配置</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 自定义命令 -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-terminal text-info me-2"></i> 自定义命令
+                                </h5>
+                            </div>
+                            <p class="card-text">创建自定义命令，让机器人以特定方式回应用户的命令。</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="btn btn-sm btn-outline-primary w-100">配置</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 等级系统 -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-line text-warning me-2"></i> 等级系统
+                                </h5>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="levelSwitch" {% if level_system.enabled %}checked{% endif %} disabled>
+                                </div>
+                            </div>
+                            <p class="card-text">为活跃成员提供等级和经验值，并通过独特的角色奖励活跃度。</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="btn btn-sm btn-outline-primary w-100">配置</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 服务器日志 -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-clipboard-list text-secondary me-2"></i> 服务器日志
+                                </h5>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="logSwitch" {% if log_setting.enabled %}checked{% endif %} disabled>
+                                </div>
+                            </div>
+                            <p class="card-text">记录服务器活动，包括消息编辑、删除、成员加入/离开等。</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="btn btn-sm btn-outline-primary w-100">配置</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 音乐播放 -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-music text-danger me-2"></i> 音乐播放
+                                </h5>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="musicSwitch" {% if music_setting.enabled %}checked{% endif %} disabled>
+                                </div>
+                            </div>
+                            <p class="card-text">高质量音乐流媒体，支持YouTube、Spotify和SoundCloud等平台。</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="btn btn-sm btn-outline-primary w-100">配置</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 命令系统导航 -->
+            <div class="row row-cols-1 row-cols-md-3 g-4 mb-4">
+                <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="card mb-4 text-decoration-none">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="card-title mb-1">
+                                    <i class="fas fa-terminal text-primary me-2"></i> 自定义命令
+                                </h5>
+                                <p class="card-text text-muted mb-0">创建和管理自定义命令</p>
+                            </div>
+                            <i class="fas fa-chevron-right text-muted"></i>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="{{ url_for('dyno.command_categories', group_id=group.id) }}" class="card mb-4 text-decoration-none">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="card-title mb-1">
+                                    <i class="fas fa-list text-success me-2"></i> 命令系统
+                                </h5>
+                                <p class="card-text text-muted mb-0">管理和配置各类命令</p>
+                            </div>
+                            <i class="fas fa-chevron-right text-muted"></i>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">如何使用 Dyno 功能</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于Dyno功能</h6>
+                        <p class="mb-0">Dyno功能是一套强大的Discord服务器管理工具，可以帮助您提高服务器质量，增强用户体验。要使用这些功能，请确保：</p>
+                        <ol class="mb-0 mt-2">
+                            <li>您的Discord账号已连接</li>
+                            <li>您在Discord服务器中拥有管理权限</li>
+                            <li>配置相应功能后，机器人会按照设置自动运行</li>
+                        </ol>
+                    </div>
+                    
+                    {% if not has_admin %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i> 权限提示</h6>
+                        <p class="mb-0">您目前没有管理此群组的Dyno功能的权限。只有群组所有者和管理员才能配置Dyno功能。</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .bg-discord {
+        background-color: #5865F2;
+    }
+    
+    .btn-discord {
+        background-color: #5865F2;
+        color: white;
+    }
+    
+    .btn-discord:hover {
+        background-color: #4752c4;
+        color: white;
+    }
+</style>
+{% endblock %}

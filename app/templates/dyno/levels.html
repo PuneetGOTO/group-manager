@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+
+{% block title %}等级系统 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-chart-line text-primary me-2"></i> 等级系统
+                </h2>
+            </div>
+            
+            <!-- 主要配置表单 -->
+            <form method="post">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="levelTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="true">基本设置</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="rewards-tab" data-bs-toggle="tab" data-bs-target="#rewards" type="button" role="tab" aria-controls="rewards" aria-selected="false">等级奖励</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="leaderboard-tab" data-bs-toggle="tab" data-bs-target="#leaderboard" type="button" role="tab" aria-controls="leaderboard" aria-selected="false">排行榜</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="levelTabsContent">
+                            <!-- 基本设置 -->
+                            <div class="tab-pane fade show active" id="settings" role="tabpanel" aria-labelledby="settings-tab">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enabled" name="enabled" {% if level_system.enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="enabled">启用等级系统</label>
+                                    </div>
+                                    <div class="form-text text-muted">开启后，用户发消息会获得经验值并随着经验增长提升等级</div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="min_xp" class="form-label">最小经验值获取</label>
+                                        <input type="number" class="form-control" id="min_xp" name="min_xp" value="{{ level_system.min_xp }}" min="1" max="50">
+                                        <div class="form-text">每条消息获得的最小经验值</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="max_xp" class="form-label">最大经验值获取</label>
+                                        <input type="number" class="form-control" id="max_xp" name="max_xp" value="{{ level_system.max_xp }}" min="5" max="100">
+                                        <div class="form-text">每条消息获得的最大经验值</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="cooldown" class="form-label">经验获取冷却时间（秒）</label>
+                                    <input type="number" class="form-control" id="cooldown" name="cooldown" value="{{ level_system.cooldown }}" min="0" max="120">
+                                    <div class="form-text">用户发送消息后需要等待多久才能再次获得经验值（防止刷屏）</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="announce_level_up" name="announce_level_up" {% if level_system.announce_level_up %}checked{% endif %}>
+                                        <label class="form-check-label" for="announce_level_up">公开宣布等级提升</label>
+                                    </div>
+                                    <div class="form-text text-muted">当用户升级时，在频道中公开宣布</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="announce_channel" class="form-label">等级提升公告频道</label>
+                                    <select class="form-select" id="announce_channel" name="announce_channel_id" {% if not level_system.announce_level_up %}disabled{% endif %}>
+                                        <option value="">消息所在的频道</option>
+                                        {% for channel in channels %}
+                                        <option value="{{ channel.id }}" {% if level_system.announce_channel_id == channel.id %}selected{% endif %}>{{ channel.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">选择"消息所在的频道"将在用户发消息的频道发布升级提醒</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="level_up_message" class="form-label">等级提升消息</label>
+                                    <textarea class="form-control" id="level_up_message" name="level_up_message" rows="2" {% if not level_system.announce_level_up %}disabled{% endif %}>{{ level_system.level_up_message }}</textarea>
+                                    <div class="form-text">
+                                        可用变量：<code>{user}</code>（用户名称）, <code>{level}</code>（新等级）
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-secondary">
+                                    <strong>预览：</strong> 
+                                    <p class="preview-message" id="level_up_preview">
+                                        {{ level_system.level_up_message|replace('{user}', current_user.username)|replace('{level}', '5') }}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- 等级奖励 -->
+                            <div class="tab-pane fade" id="rewards" role="tabpanel" aria-labelledby="rewards-tab">
+                                <div class="alert alert-info mb-4">
+                                    <i class="fas fa-info-circle me-2"></i> 等级奖励可以根据用户达到的等级自动授予角色，鼓励活跃的社区成员。
+                                </div>
+                                
+                                <div class="table-responsive mb-3">
+                                    <table class="table table-hover" id="rewardsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>等级</th>
+                                                <th>奖励角色</th>
+                                                <th width="100">操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if level_rewards %}
+                                                {% for reward in level_rewards %}
+                                                <tr>
+                                                    <td>{{ reward.level }}</td>
+                                                    <td>{{ reward.role_name }}</td>
+                                                    <td>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteReward({{ reward.id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr id="no-rewards">
+                                                    <td colspan="3" class="text-center py-3 text-muted">尚未设置等级奖励</td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">添加新奖励</h6>
+                                        <div class="row g-2">
+                                            <div class="col-md-4">
+                                                <label for="reward_level" class="form-label">等级</label>
+                                                <input type="number" class="form-control" id="reward_level" min="1" max="100" placeholder="等级">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="reward_role" class="form-label">奖励角色</label>
+                                                <select class="form-select" id="reward_role">
+                                                    <option value="">选择角色...</option>
+                                                    {% for role in roles %}
+                                                    <option value="{{ role.id }}">{{ role.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2 d-flex align-items-end">
+                                                <button type="button" class="btn btn-primary w-100" id="addRewardBtn">添加</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 隐藏的奖励数据字段 -->
+                                <input type="hidden" id="rewards_data" name="rewards_data" value="{{ level_rewards_json }}">
+                            </div>
+                            
+                            <!-- 排行榜 -->
+                            <div class="tab-pane fade" id="leaderboard" role="tabpanel" aria-labelledby="leaderboard-tab">
+                                <div class="alert alert-info mb-4">
+                                    <i class="fas fa-info-circle me-2"></i> 下面显示的是服务器中排名前10的用户。
+                                </div>
+                                
+                                {% if top_users %}
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th width="60">排名</th>
+                                                <th>用户</th>
+                                                <th>等级</th>
+                                                <th>经验值</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for user in top_users %}
+                                            <tr>
+                                                <td class="text-center">
+                                                    {% if loop.index == 1 %}
+                                                    <span class="badge bg-warning text-dark"><i class="fas fa-trophy"></i> 1</span>
+                                                    {% elif loop.index == 2 %}
+                                                    <span class="badge bg-secondary"><i class="fas fa-medal"></i> 2</span>
+                                                    {% elif loop.index == 3 %}
+                                                    <span class="badge bg-danger"><i class="fas fa-medal"></i> 3</span>
+                                                    {% else %}
+                                                    {{ loop.index }}
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ user.username }}</td>
+                                                <td>{{ user.level }}</td>
+                                                <td>{{ user.xp }} / {{ user.xp_needed }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <h5>尚无排行数据</h5>
+                                    <p class="text-muted">用户需要发送消息才能开始累积经验值</p>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="alert alert-secondary mt-3">
+                                    <h6><i class="fas fa-cog me-2"></i> 排行榜命令</h6>
+                                    <p class="mb-0">用户可以在Discord中使用 <code>!rank</code> 查看自己的等级，或使用 <code>!leaderboard</code> 查看服务器排行榜。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="btn btn-outline-secondary me-2">取消</a>
+                        <button type="submit" class="btn btn-primary">保存设置</button>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">等级系统使用说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于等级系统</h6>
+                        <p class="mb-0">等级系统可以激励用户参与社区互动，用户每发送消息可获得经验值，累积到一定程度后升级，并可通过等级获得特殊角色权限。</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>功能说明：</h6>
+                        <ul>
+                            <li><strong>经验获取</strong>：用户发送消息时获得随机经验值</li>
+                            <li><strong>等级提升</strong>：经验达到特定值时提升等级</li>
+                            <li><strong>奖励系统</strong>：用户达到特定等级时自动获得相应的角色</li>
+                            <li><strong>排行榜</strong>：展示服务器中活跃度最高的用户</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <h6>提示：</h6>
+                        <ul class="mb-0">
+                            <li>合理设置经验获取范围和冷却时间，避免刷屏行为</li>
+                            <li>为不同等级设置合理的角色奖励，鼓励用户互动</li>
+                            <li>可以调整升级提醒信息，提高用户参与积极性</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 等级提升消息预览
+        const levelUpMessage = document.getElementById('level_up_message');
+        const levelUpPreview = document.getElementById('level_up_preview');
+        const announceToggle = document.getElementById('announce_level_up');
+        const announceChannel = document.getElementById('announce_channel');
+        
+        if (levelUpMessage && levelUpPreview) {
+            levelUpMessage.addEventListener('input', updateLevelUpPreview);
+            
+            function updateLevelUpPreview() {
+                let message = levelUpMessage.value;
+                message = message.replace(/{user}/g, "{{ current_user.username }}");
+                message = message.replace(/{level}/g, "5");
+                levelUpPreview.textContent = message;
+            }
+        }
+        
+        // 切换公告启用状态
+        if (announceToggle) {
+            announceToggle.addEventListener('change', function() {
+                if (announceChannel && levelUpMessage) {
+                    announceChannel.disabled = !this.checked;
+                    levelUpMessage.disabled = !this.checked;
+                }
+            });
+        }
+        
+        // 等级奖励管理
+        const rewardsData = document.getElementById('rewards_data');
+        const addRewardBtn = document.getElementById('addRewardBtn');
+        const rewardLevel = document.getElementById('reward_level');
+        const rewardRole = document.getElementById('reward_role');
+        const rewardsTable = document.getElementById('rewardsTable');
+        
+        let rewards = [];
+        if (rewardsData && rewardsData.value) {
+            try {
+                rewards = JSON.parse(rewardsData.value);
+            } catch (e) {
+                console.error('Error parsing rewards data', e);
+                rewards = [];
+            }
+        }
+        
+        // 添加奖励
+        if (addRewardBtn) {
+            addRewardBtn.addEventListener('click', function() {
+                if (!rewardLevel.value || !rewardRole.value) {
+                    alert('请填写等级和选择角色');
+                    return;
+                }
+                
+                const level = parseInt(rewardLevel.value);
+                const roleId = rewardRole.value;
+                const roleName = rewardRole.options[rewardRole.selectedIndex].text;
+                
+                // 检查重复等级
+                if (rewards.some(r => r.level === level)) {
+                    alert('该等级已有奖励设置，请选择其他等级');
+                    return;
+                }
+                
+                // 生成临时ID
+                const tempId = Date.now();
+                
+                // 添加到数据
+                rewards.push({
+                    id: tempId,
+                    level: level,
+                    role_id: roleId,
+                    role_name: roleName
+                });
+                
+                // 更新隐藏字段
+                rewardsData.value = JSON.stringify(rewards);
+                
+                // 更新表格
+                updateRewardsTable();
+                
+                // 清空输入
+                rewardLevel.value = '';
+                rewardRole.value = '';
+            });
+        }
+        
+        // 删除奖励
+        window.deleteReward = function(id) {
+            rewards = rewards.filter(r => r.id !== id);
+            rewardsData.value = JSON.stringify(rewards);
+            updateRewardsTable();
+        };
+        
+        // 更新奖励表格
+        function updateRewardsTable() {
+            const tbody = rewardsTable.querySelector('tbody');
+            const noRewardsRow = document.getElementById('no-rewards');
+            
+            // 如果有"无奖励"行，则移除
+            if (noRewardsRow) {
+                noRewardsRow.remove();
+            }
+            
+            // 清空表格
+            if (rewards.length === 0) {
+                tbody.innerHTML = '<tr id="no-rewards"><td colspan="3" class="text-center py-3 text-muted">尚未设置等级奖励</td></tr>';
+                return;
+            }
+            
+            // 按等级排序
+            rewards.sort((a, b) => a.level - b.level);
+            
+            // 重新生成表格
+            tbody.innerHTML = rewards.map(reward => `
+                <tr>
+                    <td>${reward.level}</td>
+                    <td>${reward.role_name}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteReward(${reward.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+
+{% block title %}音乐播放设置 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-music text-danger me-2"></i> 音乐播放设置
+                </h2>
+            </div>
+            
+            <!-- 主要配置表单 -->
+            <form method="post">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">音乐播放设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="music_enabled" name="music_enabled" {% if music_setting.enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="music_enabled">启用音乐播放功能</label>
+                            </div>
+                            <div class="form-text text-muted">开启后，用户可以使用Dyno机器人播放音乐</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="default_volume" class="form-label">默认音量 (1-100)</label>
+                            <input type="range" class="form-range" id="default_volume" name="default_volume" min="1" max="100" value="{{ music_setting.default_volume or 30 }}" {% if not music_setting.enabled %}disabled{% endif %}>
+                            <div class="text-center">
+                                <span id="volume_value" class="badge bg-primary">{{ music_setting.default_volume or 30 }}</span>
+                            </div>
+                            <div class="form-text">设置音乐播放的默认音量大小</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="max_queue_length" class="form-label">最大队列长度</label>
+                            <input type="number" class="form-control" id="max_queue_length" name="max_queue_length" value="{{ music_setting.max_queue_length or 25 }}" min="5" max="100" {% if not music_setting.enabled %}disabled{% endif %}>
+                            <div class="form-text">设置音乐播放队列的最大长度</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="max_song_length" class="form-label">最大歌曲时长 (分钟)</label>
+                            <input type="number" class="form-control" id="max_song_length" name="max_song_length" value="{{ music_setting.max_song_length or 10 }}" min="3" max="180" {% if not music_setting.enabled %}disabled{% endif %}>
+                            <div class="form-text">设置单首歌曲的最大时长，防止过长音乐占用机器人</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="dj_role" class="form-label">DJ 角色</label>
+                            <select class="form-select" id="dj_role" name="dj_role_id" {% if not music_setting.enabled %}disabled{% endif %}>
+                                <option value="">无需特殊角色（所有人可控制）</option>
+                                {% for role in roles %}
+                                <option value="{{ role.id }}" {% if music_setting.dj_role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">设置可以控制音乐播放的角色，如跳过、停止等操作</div>
+                        </div>
+                        
+                        <div class="alert alert-info mb-3">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-info-circle fa-2x text-info"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6>高级功能控制</h6>
+                                    <p class="mb-0">以下选项可以控制哪些用户可以使用特定的音乐命令</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">基本命令控制</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="allow_play_everyone" name="allow_play_everyone" {% if music_setting.allow_play_everyone %}checked{% endif %} {% if not music_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="allow_play_everyone">所有人可以添加歌曲</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="allow_skip_everyone" name="allow_skip_everyone" {% if music_setting.allow_skip_everyone %}checked{% endif %} {% if not music_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="allow_skip_everyone">所有人可以投票跳过</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="allow_volume_everyone" name="allow_volume_everyone" {% if music_setting.allow_volume_everyone %}checked{% endif %} {% if not music_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="allow_volume_everyone">所有人可以调整音量</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">高级命令控制</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="allow_stop_dj" name="allow_stop_dj" {% if music_setting.allow_stop_dj %}checked{% endif %} {% if not music_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="allow_stop_dj">只有DJ可以停止播放</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="allow_forceskip_dj" name="allow_forceskip_dj" {% if music_setting.allow_forceskip_dj %}checked{% endif %} {% if not music_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="allow_forceskip_dj">只有DJ可以强制跳过</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="allow_clear_dj" name="allow_clear_dj" {% if music_setting.allow_clear_dj %}checked{% endif %} {% if not music_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="allow_clear_dj">只有DJ可以清空播放队列</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="btn btn-outline-secondary me-2">取消</a>
+                        <button type="submit" class="btn btn-primary">保存设置</button>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- 音乐命令列表 -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">音乐命令列表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>命令</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>!play &lt;歌曲链接或关键词&gt;</code></td>
+                                    <td>播放指定歌曲或将歌曲添加到队列</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!pause</code></td>
+                                    <td>暂停当前播放</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!resume</code></td>
+                                    <td>恢复暂停的播放</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!skip</code></td>
+                                    <td>投票跳过当前歌曲</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!forceskip</code></td>
+                                    <td>强制跳过当前歌曲（仅DJ可用）</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!queue</code></td>
+                                    <td>查看当前播放队列</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!volume &lt;1-100&gt;</code></td>
+                                    <td>调整播放音量</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!stop</code></td>
+                                    <td>停止播放并清空队列</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!nowplaying</code></td>
+                                    <td>显示当前播放的歌曲信息</td>
+                                </tr>
+                                <tr>
+                                    <td><code>!clear</code></td>
+                                    <td>清空播放队列</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">音乐播放使用说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于音乐播放功能</h6>
+                        <p class="mb-0">音乐播放功能允许用户在Discord语音频道中享受音乐。机器人可以播放来自YouTube、Spotify等平台的音乐，并支持队列管理和投票跳过等功能。</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>使用方法：</h6>
+                        <ol>
+                            <li>首先，您需要加入一个语音频道</li>
+                            <li>使用 <code>!play &lt;歌曲名称或链接&gt;</code> 命令开始播放</li>
+                            <li>机器人会自动加入您所在的语音频道并开始播放</li>
+                            <li>使用其他命令管理播放，如 <code>!pause</code>, <code>!skip</code> 等</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <h6>注意事项：</h6>
+                        <ul class="mb-0">
+                            <li>设置DJ角色可以控制谁有权使用高级命令</li>
+                            <li>支持的音乐来源包括YouTube、Spotify、SoundCloud等</li>
+                            <li>设置合理的最大歌曲时长可以防止过长的歌曲占用机器人</li>
+                            <li>投票跳过需要频道中一定比例的用户同意才会生效</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取元素
+        const musicEnabled = document.getElementById('music_enabled');
+        const defaultVolume = document.getElementById('default_volume');
+        const volumeValue = document.getElementById('volume_value');
+        const maxQueueLength = document.getElementById('max_queue_length');
+        const maxSongLength = document.getElementById('max_song_length');
+        const djRole = document.getElementById('dj_role');
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(#music_enabled)');
+        
+        // 显示当前音量值
+        if (defaultVolume && volumeValue) {
+            defaultVolume.addEventListener('input', function() {
+                volumeValue.textContent = this.value;
+            });
+        }
+        
+        // 启用/禁用音乐功能
+        if (musicEnabled) {
+            musicEnabled.addEventListener('change', function() {
+                const disabled = !this.checked;
+                
+                if (defaultVolume) defaultVolume.disabled = disabled;
+                if (maxQueueLength) maxQueueLength.disabled = disabled;
+                if (maxSongLength) maxSongLength.disabled = disabled;
+                if (djRole) djRole.disabled = disabled;
+                
+                // 启用/禁用所有选项
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.disabled = disabled;
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

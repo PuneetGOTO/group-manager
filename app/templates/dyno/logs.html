@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}服务器日志设置 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-clipboard-list text-warning me-2"></i> 服务器日志设置
+                </h2>
+            </div>
+            
+            <!-- 主要配置表单 -->
+            <form method="post">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">日志设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="logs_enabled" name="logs_enabled" {% if log_setting.enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="logs_enabled">启用服务器日志</label>
+                            </div>
+                            <div class="form-text text-muted">开启后，机器人将记录服务器中的各类事件</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="log_channel" class="form-label">日志频道</label>
+                            <select class="form-select" id="log_channel" name="log_channel_id" {% if not log_setting.enabled %}disabled{% endif %}>
+                                <option value="">选择频道...</option>
+                                {% for channel in channels %}
+                                <option value="{{ channel.id }}" {% if log_setting.log_channel_id == channel.id %}selected{% endif %}>{{ channel.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">选择用于记录服务器事件的频道</div>
+                        </div>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">服务器事件</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_member_join" name="log_member_join" {% if log_setting.log_member_join %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_member_join">成员加入</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_member_leave" name="log_member_leave" {% if log_setting.log_member_leave %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_member_leave">成员离开</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_member_ban" name="log_member_ban" {% if log_setting.log_member_ban %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_member_ban">成员封禁/解封</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_member_nick" name="log_member_nick" {% if log_setting.log_member_nick %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_member_nick">成员昵称变更</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_role_changes" name="log_role_changes" {% if log_setting.log_role_changes %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_role_changes">角色变更</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="log_server_update" name="log_server_update" {% if log_setting.log_server_update %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_server_update">服务器更新</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">消息事件</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_message_edit" name="log_message_edit" {% if log_setting.log_message_edit %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_message_edit">消息编辑</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_message_delete" name="log_message_delete" {% if log_setting.log_message_delete %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_message_delete">消息删除</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_channel_create" name="log_channel_create" {% if log_setting.log_channel_create %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_channel_create">频道创建</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_channel_update" name="log_channel_update" {% if log_setting.log_channel_update %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_channel_update">频道更新</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="log_channel_delete" name="log_channel_delete" {% if log_setting.log_channel_delete %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_channel_delete">频道删除</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="log_voice_events" name="log_voice_events" {% if log_setting.log_voice_events %}checked{% endif %} {% if not log_setting.enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="log_voice_events">语音频道事件</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="btn btn-outline-secondary me-2">取消</a>
+                        <button type="submit" class="btn btn-primary">保存设置</button>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- 日志示例 -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">日志示例</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-secondary mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-plus fa-2x text-success"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0">成员加入</h6>
+                                <small class="text-muted">今天 14:25</small>
+                            </div>
+                        </div>
+                        <p class="mb-0"><strong>{{ current_user.username }}</strong> 加入了服务器</p>
+                    </div>
+                    
+                    <div class="alert alert-secondary mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-pen fa-2x text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0">消息编辑</h6>
+                                <small class="text-muted">今天 13:42</small>
+                            </div>
+                        </div>
+                        <p class="mb-0"><strong>{{ current_user.username }}</strong> 编辑了消息：</p>
+                        <div class="mt-1">
+                            <div class="mb-1 text-muted"><small>原消息:</small></div>
+                            <div class="bg-light p-2 rounded">大家好，今天天气不错</div>
+                            <div class="mb-1 mt-2 text-muted"><small>新消息:</small></div>
+                            <div class="bg-light p-2 rounded">大家好，今天天气真不错，适合户外活动</div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-secondary mb-0">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-shield fa-2x text-danger"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0">成员封禁</h6>
+                                <small class="text-muted">昨天 20:15</small>
+                            </div>
+                        </div>
+                        <p class="mb-0"><strong>管理员</strong> 封禁了用户 <strong>问题用户#1234</strong></p>
+                        <div class="mt-1">
+                            <div class="mb-1 text-muted"><small>原因:</small></div>
+                            <div class="bg-light p-2 rounded">多次违反社区规则，发布不当内容</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">服务器日志使用说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于服务器日志</h6>
+                        <p class="mb-0">服务器日志功能可以帮助管理员监控服务器中的各类活动，包括成员加入/离开、消息编辑/删除、角色变更等，便于追踪服务器中的重要事件。</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>功能说明：</h6>
+                        <ul>
+                            <li><strong>服务器事件</strong>：记录成员的加入、离开、封禁等事件</li>
+                            <li><strong>消息事件</strong>：记录消息的编辑、删除等操作</li>
+                            <li><strong>频道事件</strong>：记录频道的创建、更新、删除等变化</li>
+                            <li><strong>角色事件</strong>：记录角色的分配、移除等变更</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <h6>使用提示：</h6>
+                        <ul class="mb-0">
+                            <li>建议创建专门的日志频道，以免日志信息影响正常聊天</li>
+                            <li>根据服务器规模，选择合适的日志类型，避免日志过于冗长</li>
+                            <li>日志记录有助于排查问题，追踪违规行为</li>
+                            <li>可以与自动审核功能结合，更全面地保护服务器安全</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取元素
+        const logsEnabled = document.getElementById('logs_enabled');
+        const logChannel = document.getElementById('log_channel');
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(#logs_enabled)');
+        
+        // 启用/禁用日志功能
+        if (logsEnabled) {
+            logsEnabled.addEventListener('change', function() {
+                if (logChannel) {
+                    logChannel.disabled = !this.checked;
+                }
+                
+                // 启用/禁用所有选项
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.disabled = !logsEnabled.checked;
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

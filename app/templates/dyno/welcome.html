@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}欢迎消息设置 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-door-open text-success me-2"></i> 欢迎消息设置
+                </h2>
+            </div>
+            
+            <!-- 主要配置表单 -->
+            <form method="post">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="welcomeTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="welcome-tab" data-bs-toggle="tab" data-bs-target="#welcome" type="button" role="tab" aria-controls="welcome" aria-selected="true">欢迎消息</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="goodbye-tab" data-bs-toggle="tab" data-bs-target="#goodbye" type="button" role="tab" aria-controls="goodbye" aria-selected="false">告别消息</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="dm-tab" data-bs-toggle="tab" data-bs-target="#dm" type="button" role="tab" aria-controls="dm" aria-selected="false">私信欢迎</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="welcomeTabsContent">
+                            <!-- 欢迎消息 -->
+                            <div class="tab-pane fade show active" id="welcome" role="tabpanel" aria-labelledby="welcome-tab">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="welcome_enabled" name="welcome_enabled" {% if welcome.welcome_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="welcome_enabled">启用欢迎消息</label>
+                                    </div>
+                                    <div class="form-text text-muted">当新成员加入服务器时发送欢迎消息</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="welcome_channel_id" class="form-label">欢迎频道</label>
+                                    <select class="form-select" id="welcome_channel_id" name="welcome_channel_id">
+                                        <option value="">选择频道...</option>
+                                        {% for channel in channels %}
+                                        <option value="{{ channel.id }}" {% if welcome.welcome_channel_id == channel.id %}selected{% endif %}>{{ channel.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">选择发送欢迎消息的频道</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="welcome_message" class="form-label">欢迎消息内容</label>
+                                    <textarea class="form-control" id="welcome_message" name="welcome_message" rows="4" placeholder="输入欢迎消息...">{{ welcome.welcome_message }}</textarea>
+                                    <div class="form-text">
+                                        可用变量：<code>{user}</code>（用户名称）, <code>{server}</code>（服务器名称）, <code>{count}</code>（成员数量）
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-secondary">
+                                    <strong>预览：</strong> 
+                                    <p class="preview-message" id="welcome_preview">
+                                        {{ welcome.welcome_message|replace('{user}', current_user.username)|replace('{server}', group.name)|replace('{count}', '100') }}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- 告别消息 -->
+                            <div class="tab-pane fade" id="goodbye" role="tabpanel" aria-labelledby="goodbye-tab">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="goodbye_enabled" name="goodbye_enabled" {% if welcome.goodbye_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="goodbye_enabled">启用告别消息</label>
+                                    </div>
+                                    <div class="form-text text-muted">当成员离开服务器时发送告别消息</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="goodbye_channel_id" class="form-label">告别频道</label>
+                                    <select class="form-select" id="goodbye_channel_id" name="goodbye_channel_id">
+                                        <option value="">选择频道...</option>
+                                        {% for channel in channels %}
+                                        <option value="{{ channel.id }}" {% if welcome.goodbye_channel_id == channel.id %}selected{% endif %}>{{ channel.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">选择发送告别消息的频道</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="goodbye_message" class="form-label">告别消息内容</label>
+                                    <textarea class="form-control" id="goodbye_message" name="goodbye_message" rows="4" placeholder="输入告别消息...">{{ welcome.goodbye_message }}</textarea>
+                                    <div class="form-text">
+                                        可用变量：<code>{user}</code>（用户名称）, <code>{server}</code>（服务器名称）, <code>{count}</code>（成员数量）
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-secondary">
+                                    <strong>预览：</strong> 
+                                    <p class="preview-message" id="goodbye_preview">
+                                        {{ welcome.goodbye_message|replace('{user}', current_user.username)|replace('{server}', group.name)|replace('{count}', '100') }}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- 私信欢迎 -->
+                            <div class="tab-pane fade" id="dm" role="tabpanel" aria-labelledby="dm-tab">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="dm_welcome_enabled" name="dm_welcome_enabled" {% if welcome.dm_welcome_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="dm_welcome_enabled">启用私信欢迎</label>
+                                    </div>
+                                    <div class="form-text text-muted">当新成员加入服务器时向其发送私信欢迎</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="dm_welcome_message" class="form-label">私信欢迎内容</label>
+                                    <textarea class="form-control" id="dm_welcome_message" name="dm_welcome_message" rows="6" placeholder="输入私信欢迎内容...">{{ welcome.dm_welcome_message }}</textarea>
+                                    <div class="form-text">
+                                        可用变量：<code>{user}</code>（用户名称）, <code>{server}</code>（服务器名称）, <code>{count}</code>（成员数量）
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-secondary">
+                                    <strong>预览：</strong> 
+                                    <p class="preview-message" id="dm_preview">
+                                        {{ welcome.dm_welcome_message|replace('{user}', current_user.username)|replace('{server}', group.name)|replace('{count}', '100') }}
+                                    </p>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i> 私信欢迎是向新成员直接发送的个人消息，适合发送服务器规则、指南或重要信息。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="btn btn-outline-secondary me-2">取消</a>
+                        <button type="submit" class="btn btn-primary">保存设置</button>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">欢迎消息使用说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于欢迎消息</h6>
+                        <p class="mb-0">欢迎和告别消息功能可以帮助您自动向新加入或离开的成员发送定制化的消息，增强社区的友好氛围和归属感。</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>功能说明：</h6>
+                        <ul>
+                            <li><strong>欢迎消息</strong>：在指定频道向所有人公开欢迎新成员</li>
+                            <li><strong>告别消息</strong>：在指定频道通知所有人某成员已离开</li>
+                            <li><strong>私信欢迎</strong>：向新成员发送私人欢迎消息，可包含服务器规则、指南等</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <h6>提示：</h6>
+                        <ul class="mb-0">
+                            <li>使用变量可以让消息更个性化</li>
+                            <li>欢迎消息应简洁友好，给新成员留下好印象</li>
+                            <li>私信欢迎适合发送较长的内容，如服务器规则或指南</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 实时预览欢迎消息
+    document.addEventListener('DOMContentLoaded', function() {
+        const welcomeMessage = document.getElementById('welcome_message');
+        const goodbyeMessage = document.getElementById('goodbye_message');
+        const dmWelcomeMessage = document.getElementById('dm_welcome_message');
+        
+        const welcomePreview = document.getElementById('welcome_preview');
+        const goodbyePreview = document.getElementById('goodbye_preview');
+        const dmPreview = document.getElementById('dm_preview');
+        
+        const username = "{{ current_user.username }}";
+        const servername = "{{ group.name }}";
+        
+        function updatePreview(input, preview) {
+            if (input && preview) {
+                input.addEventListener('input', function() {
+                    let message = this.value;
+                    message = message.replace(/{user}/g, username);
+                    message = message.replace(/{server}/g, servername);
+                    message = message.replace(/{count}/g, '100');
+                    preview.textContent = message;
+                });
+            }
+        }
+        
+        updatePreview(welcomeMessage, welcomePreview);
+        updatePreview(goodbyeMessage, goodbyePreview);
+        updatePreview(dmWelcomeMessage, dmPreview);
+    });
+</script>
+{% endblock %}

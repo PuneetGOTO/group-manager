@@ -2,6 +2,11 @@ from app.models.user import User, group_members
 from app.models.group import Group
 from app.models.post import Post, Comment
 from app.models.event import Event, event_participants
+from app.models.dyno import (
+    AutoModSetting, WelcomeMessage, CustomCommand, 
+    LevelSystem, UserLevel, LogSetting, MusicSetting,
+    SystemCommand, CommandCategorySetting
+)
 
 # 导出所有模型，方便其他地方使用
 __all__ = [
@@ -11,5 +16,14 @@ __all__ = [
     'Comment', 
     'Event', 
     'group_members', 
-    'event_participants'
+    'event_participants',
+    'AutoModSetting',
+    'WelcomeMessage',
+    'CustomCommand',
+    'LevelSystem',
+    'UserLevel',
+    'LogSetting',
+    'MusicSetting',
+    'SystemCommand', 
+    'CommandCategorySetting'
 ]

@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+
+{% block title %}自动审核系统 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-shield-alt text-primary me-2"></i> 自动审核系统
+                </h2>
+            </div>
+            
+            <!-- 主要配置表单 -->
+            <form method="post">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="automod_enabled" name="enabled" {% if automod.enabled %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="automod_enabled">启用自动审核系统</label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">自动审核系统可以帮助您监控和过滤不良内容，保护您的服务器环境。</p>
+                        
+                        <hr>
+                        
+                        <!-- 反垃圾邮件设置 -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">反垃圾邮件设置</h5>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="spam_enabled" name="spam_enabled" {% if automod.spam_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="spam_enabled">启用反垃圾邮件过滤</label>
+                                </div>
+                                <div class="form-text text-muted">自动检测和处理可能的垃圾邮件和刷屏行为</div>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="spam_threshold" class="form-label">垃圾邮件阈值</label>
+                                    <input type="number" class="form-control" id="spam_threshold" name="spam_threshold" value="{{ automod.spam_threshold }}" min="1" max="20">
+                                    <div class="form-text">触发阈值（消息数/30秒）</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="spam_action" class="form-label">违规处理</label>
+                                    <select class="form-select" id="spam_action" name="spam_action">
+                                        <option value="delete" {% if automod.spam_action == 'delete' %}selected{% endif %}>删除消息</option>
+                                        <option value="warn" {% if automod.spam_action == 'warn' %}selected{% endif %}>警告用户</option>
+                                        <option value="mute" {% if automod.spam_action == 'mute' %}selected{% endif %}>临时禁言</option>
+                                        <option value="kick" {% if automod.spam_action == 'kick' %}selected{% endif %}>踢出服务器</option>
+                                        <option value="ban" {% if automod.spam_action == 'ban' %}selected{% endif %}>封禁用户</option>
+                                    </select>
+                                    <div class="form-text">检测到垃圾邮件时的处理方式</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 不良内容过滤 -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">不良内容过滤</h5>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="filter_enabled" name="filter_enabled" {% if automod.filter_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="filter_enabled">启用不良内容过滤</label>
+                                </div>
+                                <div class="form-text text-muted">自动过滤包含敏感词汇的消息</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="filter_words" class="form-label">过滤词汇</label>
+                                <textarea class="form-control" id="filter_words" name="filter_words" rows="3" placeholder="输入要过滤的词汇，以逗号分隔">{{ automod.filter_words }}</textarea>
+                                <div class="form-text">输入要过滤的词汇，以逗号分隔</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="filter_action" class="form-label">违规处理</label>
+                                <select class="form-select" id="filter_action" name="filter_action">
+                                    <option value="delete" {% if automod.filter_action == 'delete' %}selected{% endif %}>删除消息</option>
+                                    <option value="warn" {% if automod.filter_action == 'warn' %}selected{% endif %}>警告用户</option>
+                                    <option value="mute" {% if automod.filter_action == 'mute' %}selected{% endif %}>临时禁言</option>
+                                    <option value="kick" {% if automod.filter_action == 'kick' %}selected{% endif %}>踢出服务器</option>
+                                    <option value="ban" {% if automod.filter_action == 'ban' %}selected{% endif %}>封禁用户</option>
+                                </select>
+                                <div class="form-text">检测到不良内容时的处理方式</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 链接过滤 -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">链接过滤</h5>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="link_filter_enabled" name="link_filter_enabled" {% if automod.link_filter_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="link_filter_enabled">启用链接过滤</label>
+                                </div>
+                                <div class="form-text text-muted">控制服务器中允许的链接类型</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="allowed_domains" class="form-label">允许的域名</label>
+                                <textarea class="form-control" id="allowed_domains" name="allowed_domains" rows="3" placeholder="输入允许的域名，以逗号分隔（例如：youtube.com,discord.com）">{{ automod.allowed_domains }}</textarea>
+                                <div class="form-text">留空表示不允许任何链接，输入域名以允许特定网站</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="link_filter_action" class="form-label">违规处理</label>
+                                <select class="form-select" id="link_filter_action" name="link_filter_action">
+                                    <option value="delete" {% if automod.link_filter_action == 'delete' %}selected{% endif %}>删除消息</option>
+                                    <option value="warn" {% if automod.link_filter_action == 'warn' %}selected{% endif %}>警告用户</option>
+                                    <option value="mute" {% if automod.link_filter_action == 'mute' %}selected{% endif %}>临时禁言</option>
+                                </select>
+                                <div class="form-text">检测到未允许的链接时的处理方式</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 大写字母审核 -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">大写字母审核</h5>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="caps_filter_enabled" name="caps_filter_enabled" {% if automod.caps_filter_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="caps_filter_enabled">启用大写字母审核</label>
+                                </div>
+                                <div class="form-text text-muted">过滤包含过多大写字母的消息（如全大写喊叫）</div>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="caps_percentage" class="form-label">大写字母百分比阈值</label>
+                                    <input type="number" class="form-control" id="caps_percentage" name="caps_percentage" value="{{ automod.caps_percentage }}" min="50" max="100">
+                                    <div class="form-text">超过此百分比的大写字母将触发过滤</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="caps_min_length" class="form-label">最小字符数</label>
+                                    <input type="number" class="form-control" id="caps_min_length" name="caps_min_length" value="{{ automod.caps_min_length }}" min="5" max="100">
+                                    <div class="form-text">只检查超过此长度的消息</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 重复消息审核 -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">重复消息审核</h5>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="duplicate_filter_enabled" name="duplicate_filter_enabled" {% if automod.duplicate_filter_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="duplicate_filter_enabled">启用重复消息审核</label>
+                                </div>
+                                <div class="form-text text-muted">检测和处理短时间内的重复消息</div>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="duplicate_threshold" class="form-label">重复阈值</label>
+                                    <input type="number" class="form-control" id="duplicate_threshold" name="duplicate_threshold" value="{{ automod.duplicate_threshold }}" min="2" max="10">
+                                    <div class="form-text">允许发送的最大重复消息数</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="duplicate_timeframe" class="form-label">时间窗口（秒）</label>
+                                    <input type="number" class="form-control" id="duplicate_timeframe" name="duplicate_timeframe" value="{{ automod.duplicate_timeframe }}" min="10" max="300">
+                                    <div class="form-text">检测重复消息的时间范围</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 慢速模式 -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">慢速模式</h5>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="slowmode_enabled" name="slowmode_enabled" {% if automod.slowmode_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="slowmode_enabled">启用全局慢速模式</label>
+                                </div>
+                                <div class="form-text text-muted">限制用户发送消息的频率</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="slowmode_seconds" class="form-label">消息间隔（秒）</label>
+                                <input type="number" class="form-control" id="slowmode_seconds" name="slowmode_seconds" value="{{ automod.slowmode_seconds }}" min="1" max="120">
+                                <div class="form-text">用户必须等待的时间间隔</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="btn btn-outline-secondary me-2">取消</a>
+                        <button type="submit" class="btn btn-primary">保存设置</button>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">自动审核使用说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于自动审核系统</h6>
+                        <p class="mb-0">自动审核系统会根据您设置的规则自动检测和处理违规内容，帮助您维护一个干净、友好的社区环境。</p>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6>功能说明：</h6>
+                        <ul>
+                            <li><strong>反垃圾邮件</strong>：防止用户在短时间内发送大量相似消息</li>
+                            <li><strong>不良内容过滤</strong>：自动检测和处理包含敏感词汇的消息</li>
+                            <li><strong>链接过滤</strong>：控制用户可以发送的链接类型，防止钓鱼和恶意链接</li>
+                            <li><strong>大写字母审核</strong>：防止用户使用全大写喊叫打扰他人</li>
+                            <li><strong>重复消息审核</strong>：防止用户反复发送相同内容</li>
+                            <li><strong>慢速模式</strong>：限制用户发送消息的频率，防止刷屏</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

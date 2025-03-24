@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+
+{% block title %}自定义命令 - {{ group.name }} - 群组管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- 左侧边栏：导航 -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cogs me-2"></i> Dyno 功能
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shield-alt me-2"></i> 自动审核
+                    </a>
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    </a>
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    </a>
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    </a>
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    </a>
+                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-music me-2"></i> 音乐播放
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 返回群组 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <a href="{{ url_for('groups.view', group_id=group.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i> 返回群组
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主要内容 -->
+        <div class="col-md-9">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-terminal text-info me-2"></i> 自定义命令
+                </h2>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCommandModal">
+                    <i class="fas fa-plus me-1"></i> 添加命令
+                </button>
+            </div>
+            
+            <!-- 现有命令列表 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">命令列表</h5>
+                </div>
+                <div class="card-body">
+                    {% if commands %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>命令</th>
+                                    <th>响应</th>
+                                    <th>状态</th>
+                                    <th width="120">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for command in commands %}
+                                <tr>
+                                    <td><code>{{ command.name }}</code></td>
+                                    <td>{{ command.response|truncate(50) }}</td>
+                                    <td>
+                                        {% if command.enabled %}
+                                        <span class="badge bg-success">已启用</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">已禁用</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCommandModal{{ command.id }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteCommandModal{{ command.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                
+                                <!-- 编辑命令模态框 -->
+                                <div class="modal fade" id="editCommandModal{{ command.id }}" tabindex="-1" aria-labelledby="editCommandModalLabel{{ command.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form action="{{ url_for('dyno.edit_command', group_id=group.id, command_id=command.id) }}" method="post">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="editCommandModalLabel{{ command.id }}">编辑命令 {{ command.name }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label for="name{{ command.id }}" class="form-label">命令名称</label>
+                                                        <input type="text" class="form-control" id="name{{ command.id }}" value="{{ command.name }}" disabled>
+                                                        <div class="form-text">命令名称无法修改</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="response{{ command.id }}" class="form-label">响应内容</label>
+                                                        <textarea class="form-control" id="response{{ command.id }}" name="response" rows="5" required>{{ command.response }}</textarea>
+                                                        <div class="form-text">可用变量：<code>{user}</code>（用户名称）, <code>{server}</code>（服务器名称）</div>
+                                                    </div>
+                                                    <div class="mb-3 form-check">
+                                                        <input type="checkbox" class="form-check-input" id="enabled{{ command.id }}" name="enabled" {% if command.enabled %}checked{% endif %}>
+                                                        <label class="form-check-label" for="enabled{{ command.id }}">启用此命令</label>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                                    <button type="submit" class="btn btn-primary">保存更改</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 删除命令确认模态框 -->
+                                <div class="modal fade" id="deleteCommandModal{{ command.id }}" tabindex="-1" aria-labelledby="deleteCommandModalLabel{{ command.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteCommandModalLabel{{ command.id }}">确认删除</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>您确定要删除命令 <code>{{ command.name }}</code> 吗？此操作无法撤销。</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                                <form action="{{ url_for('dyno.delete_command', group_id=group.id, command_id=command.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger">确认删除</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-terminal fa-3x text-muted mb-3"></i>
+                        <h5>暂无自定义命令</h5>
+                        <p class="text-muted">点击"添加命令"按钮创建您的第一个自定义命令</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 使用说明 -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">自定义命令使用说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle me-2"></i> 关于自定义命令</h6>
+                        <p class="mb-0">自定义命令允许您创建自己的机器人响应，当用户在Discord中输入命令前缀（如"!"）加上您设定的命令名称时，机器人会自动回复您设定的内容。</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>使用方法：</h6>
+                        <ol>
+                            <li>创建一个命令，如 <code>!规则</code></li>
+                            <li>设置响应内容，如 "服务器规则：1. 尊重他人 2. 禁止发送不良内容 3. 禁止刷屏"</li>
+                            <li>用户在Discord频道中输入 <code>!规则</code> 时，机器人会自动回复您设置的内容</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <h6>提示：</h6>
+                        <ul class="mb-0">
+                            <li>命令名称必须以 <code>!</code> 开头</li>
+                            <li>您可以使用变量 <code>{user}</code> 和 <code>{server}</code> 使响应更加个性化</li>
+                            <li>响应内容支持基本的Markdown格式</li>
+                            <li>通过禁用命令可以暂时停用该命令而不必删除</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加命令模态框 -->
+<div class="modal fade" id="addCommandModal" tabindex="-1" aria-labelledby="addCommandModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('dyno.commands', group_id=group.id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addCommandModalLabel">添加新命令</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">命令名称</label>
+                        <div class="input-group">
+                            <span class="input-group-text">!</span>
+                            <input type="text" class="form-control" id="name" name="name" placeholder="输入命令名称" required>
+                        </div>
+                        <div class="form-text">命令名称应简短明了，不含空格</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="response" class="form-label">响应内容</label>
+                        <textarea class="form-control" id="response" name="response" rows="5" placeholder="输入机器人的响应内容..." required></textarea>
+                        <div class="form-text">可用变量：<code>{user}</code>（用户名称）, <code>{server}</code>（服务器名称）</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">添加命令</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
