@@ -172,11 +172,15 @@ def import_guild(guild_id):
         new_group = Group(
             name=guild['name'],
             description=f"从Discord服务器'{guild['name']}'导入的群组",
-            avatar=f"https://cdn.discordapp.com/icons/{guild_id}/{guild['icon']}.png" if guild.get('icon') else 'default_group.png',
+            avatar='default_group.png',  # 使用默认图片避免URL错误
             banner='default_banner.jpg',
             owner_id=current_user.id,
             discord_id=guild_id
         )
+        
+        # 尝试设置Discord图标
+        if guild.get('icon'):
+            new_group.avatar = f"https://cdn.discordapp.com/icons/{guild_id}/{guild['icon']}.png"
         
         # 保存到数据库
         db.session.add(new_group)
@@ -188,6 +192,162 @@ def import_guild(guild_id):
     except Exception as e:
         flash(f'导入Discord服务器失败: {str(e)}', 'danger')
         return redirect(url_for('discord.guilds'))
+
+@discord_bp.route('/sync-guild-members/<guild_id>')
+@login_required
+def sync_guild_members(guild_id):
+    """同步Discord服务器成员到本地群组"""
+    # 检查用户是否已连接Discord
+    if not current_user.discord_id:
+        flash('请先连接您的Discord账号', 'warning')
+        return redirect(url_for('discord.connect'))
+    
+    # 查找对应的本地群组
+    group = Group.query.filter_by(discord_id=guild_id).first()
+    if not group:
+        flash('未找到关联的群组', 'danger')
+        return redirect(url_for('discord.guilds'))
+    
+    # 检查权限
+    if group.owner_id != current_user.id:
+        flash('只有群组创建者可以同步成员', 'warning')
+        return redirect(url_for('groups.view', group_id=group.id))
+    
+    try:
+        # 获取Discord服务器角色列表
+        roles_map = DiscordClient.get_guild_roles(
+            current_user.discord_access_token,
+            guild_id
+        )
+        
+        # 获取Discord服务器成员
+        members = DiscordClient.get_guild_members(
+            current_user.discord_access_token,
+            guild_id
+        )
+        
+        # 检查是否成功获取到成员
+        if not members:
+            flash('未能获取到Discord服务器成员，请确保机器人拥有正确的权限', 'warning')
+            return redirect(url_for('groups.view', group_id=group.id))
+        
+        sync_count = 0
+        for member in members:
+            user_data = member.get('user', {})
+            discord_id = user_data.get('id')
+            
+            if not discord_id:
+                continue
+                
+            # 尝试查找已有用户
+            user = User.query.filter_by(discord_id=discord_id).first()
+            
+            # 获取用户实际显示名称和角色
+            discord_username = user_data.get('username', '')
+            nickname = member.get('nick')  # Discord中设置的昵称
+            display_name = nickname or discord_username  # 优先使用昵称
+            
+            # 收集用户角色ID列表
+            role_ids = member.get('roles', [])
+            
+            # 如果没有找到，创建一个新用户
+            if not user:
+                # 为Discord用户生成随机密码
+                import secrets
+                random_password = secrets.token_hex(16)
+                
+                # 创建新用户，使用实际用户名
+                user = User(
+                    username=display_name,  # 使用真实显示名称而不是ID
+                    email=f"discord_{discord_id}@placeholder.com",  # 占位邮箱
+                    password=random_password,  # 设置随机密码
+                    discord_id=discord_id,
+                    discord_username=display_name,
+                    discord_avatar=f"https://cdn.discordapp.com/avatars/{discord_id}/{user_data.get('avatar')}.png" if user_data.get('avatar') else None
+                )
+                db.session.add(user)
+                db.session.flush()  # 确保用户有ID
+            else:
+                # 更新现有用户的Discord用户名
+                user.discord_username = display_name
+                if user_data.get('avatar'):
+                    user.discord_avatar = f"https://cdn.discordapp.com/avatars/{discord_id}/{user_data.get('avatar')}.png"
+            
+            # 检查用户是否已经在群组中
+            stmt = db.select(group_members).where(
+                (group_members.c.user_id == user.id) & 
+                (group_members.c.group_id == group.id)
+            )
+            existing_membership = db.session.execute(stmt).first()
+            
+            # 将Discord角色ID转换为角色名并存储
+            discord_roles = ','.join([str(role_id) for role_id in role_ids]) if role_ids else ''
+            
+            # 是否为服务器所有者或管理员
+            is_owner = member.get('owner', False)
+            is_admin = False
+            
+            # 检查用户角色中是否包含管理员权限
+            for role_id in role_ids:
+                role_id_str = str(role_id)
+                if role_id_str in roles_map:
+                    role_data = roles_map[role_id_str]
+                    # Discord权限中，管理员权限是8（或者包含管理员关键字）
+                    permissions = role_data.get('permissions', 0)
+                    # 确保permissions是整数
+                    if isinstance(permissions, str):
+                        try:
+                            permissions = int(permissions)
+                        except (ValueError, TypeError):
+                            permissions = 0
+                    
+                    if permissions & 8 or 'admin' in role_data.get('name', '').lower():
+                        is_admin = True
+                        break
+                        
+            # 设置用户在群组中的角色
+            role = 'admin' if (is_owner or is_admin) else 'member'
+            
+            # 如果不在群组中，添加用户到群组
+            if not existing_membership:
+                # 添加到群组，同时存储Discord角色信息
+                stmt = group_members.insert().values(
+                    user_id=user.id,
+                    group_id=group.id,
+                    role=role,
+                    joined_at=datetime.utcnow(),
+                    discord_roles=discord_roles  # 存储Discord角色ID列表
+                )
+                db.session.execute(stmt)
+                sync_count += 1
+            else:
+                # 更新现有成员的角色信息
+                stmt = group_members.update().where(
+                    (group_members.c.user_id == user.id) & 
+                    (group_members.c.group_id == group.id)
+                ).values(
+                    discord_roles=discord_roles,
+                    role=role  # 更新成员在平台中的角色
+                )
+                db.session.execute(stmt)
+        
+        db.session.commit()
+        flash(f'成功同步了 {sync_count} 名成员，所有成员角色已更新', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        error_message = str(e)
+        current_app.logger.error(f"同步Discord成员错误: {error_message}")
+        
+        # 提供更友好的错误提示
+        if "403" in error_message and "Missing Access" in error_message:
+            flash('同步成员失败: Discord机器人缺少访问权限。请在Discord开发者门户中开启"Server Members Intent"权限，并确保机器人已经被添加到服务器。', 'danger')
+        elif "401" in error_message:
+            flash('同步成员失败: 认证失败，您可能需要重新连接Discord账号。', 'danger')
+        else:
+            flash(f'同步成员失败: {error_message}', 'danger')
+    
+    return redirect(url_for('groups.view', group_id=group.id))
 
 @discord_bp.route('/sync-guild-members/<guild_id>')
 @login_required
