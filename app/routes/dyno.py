@@ -52,6 +52,59 @@ def get_discord_roles(guild_id):
         current_app.logger.error(f"获取Discord角色时出错: {str(e)}")
         return []
 
+# 辅助函数：获取默认命令列表
+def get_default_commands(category):
+    """获取指定类别的默认命令列表"""
+    default_commands = {
+        'manager': [
+            {'name': 'setup', 'description': '设置服务器的基本配置', 'usage': '!setup'},
+            {'name': 'settings', 'description': '查看和修改机器人设置', 'usage': '!settings [模块]'},
+            {'name': 'module', 'description': '启用或禁用模块', 'usage': '!module [enable/disable] [模块名]'}
+        ],
+        'mod': [
+            {'name': 'ban', 'description': '封禁用户', 'usage': '!ban @用户 [原因]'},
+            {'name': 'kick', 'description': '踢出用户', 'usage': '!kick @用户 [原因]'},
+            {'name': 'mute', 'description': '禁言用户', 'usage': '!mute @用户 [时长] [原因]'}
+        ],
+        'info': [
+            {'name': 'serverinfo', 'description': '显示服务器信息', 'usage': '!serverinfo'},
+            {'name': 'userinfo', 'description': '显示用户信息', 'usage': '!userinfo [@用户]'},
+            {'name': 'roleinfo', 'description': '显示角色信息', 'usage': '!roleinfo [角色名]'}
+        ],
+        'fun': [
+            {'name': 'roll', 'description': '掷骰子', 'usage': '!roll [骰子数]d[面数]'},
+            {'name': '8ball', 'description': '魔法8球', 'usage': '!8ball [问题]'},
+            {'name': 'cat', 'description': '显示随机猫咪图片', 'usage': '!cat'}
+        ],
+        'moderator': [
+            {'name': 'warn', 'description': '警告用户', 'usage': '!warn @用户 [原因]'},
+            {'name': 'purge', 'description': '批量删除消息', 'usage': '!purge [数量] [@用户]'},
+            {'name': 'slowmode', 'description': '设置慢速模式', 'usage': '!slowmode [秒数]'}
+        ],
+        'roles': [
+            {'name': 'role', 'description': '添加或移除角色', 'usage': '!role [@用户] [角色名]'},
+            {'name': 'autorole', 'description': '设置自动角色', 'usage': '!autorole [角色名]'},
+            {'name': 'roleall', 'description': '给所有人添加角色', 'usage': '!roleall [角色名]'}
+        ],
+        'tags': [
+            {'name': 'tag', 'description': '显示或创建标签', 'usage': '!tag [名称] [内容]'},
+            {'name': 'taglist', 'description': '显示所有标签', 'usage': '!taglist'},
+            {'name': 'tagdelete', 'description': '删除标签', 'usage': '!tagdelete [名称]'}
+        ],
+        'giveaways': [
+            {'name': 'gcreate', 'description': '创建抽奖活动', 'usage': '!gcreate [时长] [奖品]'},
+            {'name': 'gend', 'description': '结束抽奖活动', 'usage': '!gend [消息ID]'},
+            {'name': 'greroll', 'description': '重新抽取获奖者', 'usage': '!greroll [消息ID]'}
+        ],
+        'game': [
+            {'name': 'trivia', 'description': '开始问答游戏', 'usage': '!trivia [类别]'},
+            {'name': 'hangman', 'description': '开始猜词游戏', 'usage': '!hangman [难度]'},
+            {'name': 'tictactoe', 'description': '开始井字棋游戏', 'usage': '!tictactoe @用户'}
+        ]
+    }
+    
+    return default_commands.get(category, [])
+
 # Dyno主页 - 显示所有可用功能
 @dyno_bp.route('/group/<int:group_id>/dyno')
 @login_required
@@ -653,82 +706,3 @@ def save_command_settings(group_id):
     except Exception as e:
         current_app.logger.error(f"保存命令设置时出错: {str(e)}")
         return jsonify(success=False, error=str(e))
-
-def get_default_commands(category):
-    """获取默认命令"""
-    default_commands = {
-        'manager': [
-            {'name': 'addban', 'description': '添加用户到封禁列表', 'usage': '!addban @用户 [原因]'},
-            {'name': 'announce', 'description': '发送服务器公告', 'usage': '!announce #频道 [内容]'},
-            {'name': 'settings', 'description': '查看或更改服务器设置', 'usage': '!settings [模块名]'},
-            {'name': 'setup', 'description': '设置机器人功能', 'usage': '!setup [模块名]'},
-            {'name': 'ignore', 'description': '让机器人忽略某个频道', 'usage': '!ignore #频道'},
-            {'name': 'ban', 'description': '封禁用户', 'usage': '!ban @用户 [原因]'},
-            {'name': 'unban', 'description': '解除用户封禁', 'usage': '!unban @用户'},
-        ],
-        'mod': [
-            {'name': 'warn', 'description': '警告用户', 'usage': '!warn @用户 [原因]'},
-            {'name': 'warnings', 'description': '查看用户警告记录', 'usage': '!warnings @用户'},
-            {'name': 'delwarn', 'description': '删除用户警告', 'usage': '!delwarn @用户 [警告ID]'},
-            {'name': 'mute', 'description': '禁言用户', 'usage': '!mute @用户 [时长] [原因]'},
-            {'name': 'unmute', 'description': '解除用户禁言', 'usage': '!unmute @用户'},
-            {'name': 'kick', 'description': '踢出用户', 'usage': '!kick @用户 [原因]'},
-            {'name': 'purge', 'description': '批量删除消息', 'usage': '!purge [数量]'},
-        ],
-        'info': [
-            {'name': 'help', 'description': '显示命令帮助', 'usage': '!help [命令名]'},
-            {'name': 'serverinfo', 'description': '显示服务器信息', 'usage': '!serverinfo'},
-            {'name': 'userinfo', 'description': '显示用户信息', 'usage': '!userinfo @用户'},
-            {'name': 'roleinfo', 'description': '显示角色信息', 'usage': '!roleinfo @角色'},
-            {'name': 'channelinfo', 'description': '显示频道信息', 'usage': '!channelinfo #频道'},
-            {'name': 'avatar', 'description': '显示用户头像', 'usage': '!avatar @用户'},
-            {'name': 'ping', 'description': '测试机器人响应时间', 'usage': '!ping'},
-        ],
-        'fun': [
-            {'name': '8ball', 'description': '问一个是非问题', 'usage': '!8ball [问题]'},
-            {'name': 'gif', 'description': '搜索GIF动图', 'usage': '!gif [关键词]'},
-            {'name': 'roll', 'description': '掷骰子', 'usage': '!roll [骰子数]d[面数]'},
-            {'name': 'flip', 'description': '抛硬币', 'usage': '!flip'},
-            {'name': 'cat', 'description': '随机猫咪图片', 'usage': '!cat'},
-            {'name': 'dog', 'description': '随机狗狗图片', 'usage': '!dog'},
-            {'name': 'joke', 'description': '随机笑话', 'usage': '!joke'},
-        ],
-        'moderator': [
-            {'name': 'clean', 'description': '清理特定类型的消息', 'usage': '!clean [类型] [数量]'},
-            {'name': 'slowmode', 'description': '设置慢速模式', 'usage': '!slowmode [秒数]'},
-            {'name': 'lockdown', 'description': '锁定频道', 'usage': '!lockdown [时长]'},
-            {'name': 'unlock', 'description': '解锁频道', 'usage': '!unlock'},
-            {'name': 'addrole', 'description': '添加角色给用户', 'usage': '!addrole @用户 @角色'},
-            {'name': 'removerole', 'description': '移除用户角色', 'usage': '!removerole @用户 @角色'},
-            {'name': 'nickname', 'description': '修改用户昵称', 'usage': '!nickname @用户 [新昵称]'},
-        ],
-        'roles': [
-            {'name': 'role', 'description': '分配或移除自助角色', 'usage': '!role [角色名]'},
-            {'name': 'roles', 'description': '查看可用的自助角色', 'usage': '!roles'},
-            {'name': 'autorole', 'description': '设置自动角色', 'usage': '!autorole @角色'},
-            {'name': 'roleinfo', 'description': '查看角色信息', 'usage': '!roleinfo @角色'},
-            {'name': 'createrole', 'description': '创建新角色', 'usage': '!createrole [名称] [颜色]'},
-            {'name': 'deleterole', 'description': '删除角色', 'usage': '!deleterole @角色'},
-        ],
-        'tags': [
-            {'name': 'tag', 'description': '查看一个标签', 'usage': '!tag [标签名]'},
-            {'name': 'tags', 'description': '列出所有标签', 'usage': '!tags'},
-            {'name': 'tagadd', 'description': '添加一个标签', 'usage': '!tagadd [标签名] [内容]'},
-            {'name': 'tagdel', 'description': '删除一个标签', 'usage': '!tagdel [标签名]'},
-            {'name': 'tagedit', 'description': '编辑一个标签', 'usage': '!tagedit [标签名] [新内容]'},
-        ],
-        'giveaways': [
-            {'name': 'giveaway', 'description': '创建赠品活动', 'usage': '!giveaway [时长] [奖品]'},
-            {'name': 'reroll', 'description': '重新抽取赠品获奖者', 'usage': '!reroll [消息ID]'},
-            {'name': 'gcancel', 'description': '取消赠品活动', 'usage': '!gcancel [消息ID]'},
-        ],
-        'game': [
-            {'name': 'trivia', 'description': '开始一个知识问答游戏', 'usage': '!trivia [类别]'},
-            {'name': 'hangman', 'description': '开始一个猜单词游戏', 'usage': '!hangman'},
-            {'name': 'tictactoe', 'description': '开始一个井字游戏', 'usage': '!tictactoe @用户'},
-            {'name': 'connect4', 'description': '开始一个四子棋游戏', 'usage': '!connect4 @用户'},
-            {'name': 'akinator', 'description': '开始阿基纳特猜人物游戏', 'usage': '!akinator'},
-        ],
-    }
-    
-    return default_commands.get(category, [])
