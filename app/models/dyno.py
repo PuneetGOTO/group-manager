@@ -220,3 +220,48 @@ class CommandCategorySetting(db.Model):
     __table_args__ = (
         db.UniqueConstraint('group_id', 'category', name='_group_category_uc'),
     )
+
+
+class DiscordBot(db.Model):
+    """Discord机器人配置"""
+    id = db.Column(db.Integer, primary_key=True)
+    bot_token = db.Column(db.String(100), nullable=True)
+    is_active = db.Column(db.Boolean, default=False)
+    last_activated = db.Column(db.DateTime, nullable=True)
+    last_status_check = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), default='offline')  # online, offline, error
+    error_message = db.Column(db.Text, nullable=True)
+    
+    # 关联的群组ID（可为空，表示全局机器人）
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=True)
+    group = db.relationship('Group', backref=db.backref('discord_bot', lazy=True))
+    
+    # 机器人权限设置
+    permissions = db.Column(db.String(20), default='8')  # 8表示管理员权限
+    
+    # 机器人设置
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<DiscordBot {self.id}>'
+    
+    def activate(self):
+        """激活机器人"""
+        self.is_active = True
+        self.last_activated = datetime.utcnow()
+        self.status = 'online'
+        db.session.commit()
+    
+    def deactivate(self):
+        """停用机器人"""
+        self.is_active = False
+        self.status = 'offline'
+        db.session.commit()
+    
+    def update_status(self, status, error_message=None):
+        """更新机器人状态"""
+        self.status = status
+        self.error_message = error_message
+        self.last_status_check = datetime.utcnow()
+        db.session.commit()

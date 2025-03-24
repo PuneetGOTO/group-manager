@@ -1,0 +1,393 @@
+{% extends 'layout.html' %}
+
+{% block title %}Discord机器人管理{% endblock %}
+
+{% block styles %}
+<style>
+    .bot-card {
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .bot-card .card-header {
+        border-radius: 10px 10px 0 0;
+    }
+    .bot-status {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    .status-online {
+        background-color: #43b581;
+    }
+    .status-offline {
+        background-color: #747f8d;
+    }
+    .status-error {
+        background-color: #f04747;
+    }
+    .token-input {
+        font-family: monospace;
+    }
+    .bot-actions {
+        display: flex;
+        gap: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">
+        <i class="fas fa-robot me-2"></i> Discord机器人管理
+    </h1>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i> 通过配置和启动Discord机器人，可以实现自动化管理Discord服务器的功能，包括自动审核、欢迎消息、自定义命令等。
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <!-- 全局机器人配置 -->
+            {% if current_user.is_admin %}
+            <div class="card bot-card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i> 全局机器人配置
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if global_bot %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="me-2">
+                            <span class="bot-status status-{{ global_bot.status }}"></span>
+                            <strong>状态:</strong> 
+                            {% if global_bot.status == 'online' %}
+                            <span class="text-success">在线</span>
+                            {% elif global_bot.status == 'error' %}
+                            <span class="text-danger">错误</span>
+                            {% else %}
+                            <span class="text-secondary">离线</span>
+                            {% endif %}
+                        </div>
+                        <div class="ms-3">
+                            <button class="btn btn-sm btn-outline-info check-status-btn" data-bot-id="{{ global_bot.id }}">
+                                <i class="fas fa-sync-alt"></i> 检查状态
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {% if global_bot.error_message %}
+                    <div class="alert alert-danger">
+                        <strong>错误信息:</strong> {{ global_bot.error_message }}
+                    </div>
+                    {% endif %}
+                    
+                    <form action="{{ url_for('dyno.activate_bot') }}" method="post" class="mb-3">
+                        <input type="hidden" name="bot_id" value="{{ global_bot.id }}">
+                        <div class="mb-3">
+                            <label class="form-label">机器人令牌</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control token-input" name="bot_token" placeholder="输入Discord机器人令牌" 
+                                       value="{{ global_bot.bot_token if global_bot.bot_token else '' }}">
+                                <button type="button" class="btn btn-outline-secondary toggle-password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">如不需要更改令牌，请留空</div>
+                        </div>
+                        
+                        <div class="bot-actions">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-play me-1"></i> 激活机器人
+                            </button>
+                            
+                            <form action="{{ url_for('dyno.deactivate_bot', bot_id=global_bot.id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-stop me-1"></i> 停用机器人
+                                </button>
+                            </form>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-3 bot-info-container" data-bot-id="{{ global_bot.id }}">
+                        {% if global_bot.status == 'online' %}
+                        <div class="alert alert-success">
+                            <strong>机器人信息:</strong> 
+                            <span class="bot-name">加载中...</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% else %}
+                    <!-- 没有全局机器人，显示创建表单 -->
+                    <form action="{{ url_for('dyno.activate_bot') }}" method="post">
+                        <input type="hidden" name="group_id" value="global">
+                        <div class="mb-3">
+                            <label class="form-label">机器人令牌</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control token-input" name="bot_token" placeholder="输入Discord机器人令牌" required>
+                                <button type="button" class="btn btn-outline-secondary toggle-password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">访问<a href="https://discord.com/developers/applications" target="_blank">Discord开发者门户</a>创建机器人并获取令牌</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i> 创建并激活机器人
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 群组机器人配置 -->
+            <div class="card bot-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users-cog me-2"></i> 群组机器人配置
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if group_bots %}
+                    <ul class="list-group">
+                        {% for bot in group_bots %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5>
+                                    {% if bot.group %}
+                                    <a href="{{ url_for('groups.view', group_id=bot.group.id) }}">{{ bot.group.name }}</a>
+                                    {% else %}
+                                    未关联群组
+                                    {% endif %}
+                                </h5>
+                                <div>
+                                    <span class="bot-status status-{{ bot.status }}"></span>
+                                    {% if bot.status == 'online' %}
+                                    <span class="text-success">在线</span>
+                                    {% elif bot.status == 'error' %}
+                                    <span class="text-danger">错误</span>
+                                    {% else %}
+                                    <span class="text-secondary">离线</span>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-info ms-2 check-status-btn" data-bot-id="{{ bot.id }}">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {% if bot.error_message %}
+                            <div class="alert alert-danger">
+                                <strong>错误信息:</strong> {{ bot.error_message }}
+                            </div>
+                            {% endif %}
+                            
+                            <form action="{{ url_for('dyno.activate_bot') }}" method="post" class="mb-3">
+                                <input type="hidden" name="bot_id" value="{{ bot.id }}">
+                                <div class="mb-3">
+                                    <label class="form-label">机器人令牌</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control token-input" name="bot_token" placeholder="输入Discord机器人令牌" 
+                                               value="{{ bot.bot_token if bot.bot_token else '' }}">
+                                        <button type="button" class="btn btn-outline-secondary toggle-password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">如不需要更改令牌，请留空</div>
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-play me-1"></i> 激活
+                                    </button>
+                                    
+                                    <form action="{{ url_for('dyno.deactivate_bot', bot_id=bot.id) }}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-stop me-1"></i> 停用
+                                        </button>
+                                    </form>
+                                </div>
+                            </form>
+                            
+                            <div class="mt-3 bot-info-container" data-bot-id="{{ bot.id }}">
+                                {% if bot.status == 'online' %}
+                                <div class="alert alert-success">
+                                    <strong>机器人信息:</strong> 
+                                    <span class="bot-name">加载中...</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-center my-4">您尚未为任何群组配置机器人</p>
+                    {% endif %}
+                    
+                    <!-- 创建新群组机器人 -->
+                    {% if user_groups %}
+                    <div class="mt-4">
+                        <h5><i class="fas fa-plus me-2"></i> 为群组添加机器人</h5>
+                        <form action="{{ url_for('dyno.activate_bot') }}" method="post">
+                            <div class="mb-3">
+                                <label class="form-label">选择群组</label>
+                                <select name="group_id" class="form-select" required>
+                                    <option value="">请选择群组</option>
+                                    {% for group in user_groups %}
+                                    <option value="{{ group.id }}">{{ group.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">机器人令牌</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control token-input" name="bot_token" placeholder="输入Discord机器人令牌" required>
+                                    <button type="button" class="btn btn-outline-secondary toggle-password">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i> 创建并激活机器人
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i> 帮助信息</h5>
+                </div>
+                <div class="card-body">
+                    <h5>如何获取机器人令牌？</h5>
+                    <ol>
+                        <li>访问 <a href="https://discord.com/developers/applications" target="_blank">Discord开发者门户</a></li>
+                        <li>点击 "New Application" 创建一个新应用</li>
+                        <li>为应用命名并创建</li>
+                        <li>在左侧菜单选择 "Bot"</li>
+                        <li>点击 "Add Bot"</li>
+                        <li>在TOKEN部分，点击 "Copy" 复制Bot令牌</li>
+                    </ol>
+                    
+                    <h5>如何邀请机器人到服务器？</h5>
+                    <ol>
+                        <li>在开发者门户的应用页面，选择 "OAuth2" -> "URL Generator"</li>
+                        <li>在 "SCOPES" 部分选择 "bot" 和 "applications.commands"</li>
+                        <li>在 "BOT PERMISSIONS" 部分选择需要的权限（建议选择 "Administrator"）</li>
+                        <li>复制生成的URL并在浏览器中打开</li>
+                        <li>选择要邀请机器人的服务器，并授权</li>
+                    </ol>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i> <strong>注意:</strong> 请妥善保管机器人令牌，不要泄露给他人！
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 切换密码可见性
+    $('.toggle-password').click(function() {
+        const input = $(this).closest('.input-group').find('input');
+        const icon = $(this).find('i');
+        
+        if (input.attr('type') === 'password') {
+            input.attr('type', 'text');
+            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+        } else {
+            input.attr('type', 'password');
+            icon.removeClass('fa-eye-slash').addClass('fa-eye');
+        }
+    });
+    
+    // 检查机器人状态
+    $('.check-status-btn').click(function() {
+        const botId = $(this).data('bot-id');
+        const button = $(this);
+        const originalText = button.html();
+        
+        button.html('<i class="fas fa-spinner fa-spin"></i> 检查中...');
+        button.prop('disabled', true);
+        
+        $.ajax({
+            url: '/dyno/bot/check-status/' + botId,
+            method: 'GET',
+            success: function(response) {
+                // 更新状态指示器
+                const statusContainer = button.closest('div').find('.bot-status');
+                statusContainer.removeClass('status-online status-offline status-error');
+                
+                // 更新机器人信息容器
+                const infoContainer = $('.bot-info-container[data-bot-id="' + botId + '"]');
+                
+                if (response.status === 'online') {
+                    statusContainer.addClass('status-online');
+                    button.closest('div').find('span:not(.bot-status)').text('在线').removeClass('text-danger text-secondary').addClass('text-success');
+                    
+                    // 显示机器人信息
+                    infoContainer.html(`
+                        <div class="alert alert-success">
+                            <strong>机器人信息:</strong> 
+                            ${response.bot_name} (ID: ${response.bot_id})
+                            <div class="small text-muted mt-1">最后检查: ${response.last_check || '未知'}</div>
+                        </div>
+                    `);
+                } else {
+                    statusContainer.addClass('status-error');
+                    button.closest('div').find('span:not(.bot-status)').text('错误').removeClass('text-success text-secondary').addClass('text-danger');
+                    
+                    // 显示错误信息
+                    infoContainer.html(`
+                        <div class="alert alert-danger">
+                            <strong>错误信息:</strong> ${response.message}
+                            <div class="small text-muted mt-1">最后检查: ${response.last_check || '未知'}</div>
+                        </div>
+                    `);
+                }
+            },
+            error: function() {
+                alert('检查状态失败，请重试');
+            },
+            complete: function() {
+                button.html(originalText);
+                button.prop('disabled', false);
+            }
+        });
+    });
+    
+    // 页面加载后自动检查在线机器人状态
+    $('.bot-info-container').each(function() {
+        const botId = $(this).data('bot-id');
+        const container = $(this);
+        
+        $.ajax({
+            url: '/dyno/bot/check-status/' + botId,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'online') {
+                    container.html(`
+                        <div class="alert alert-success">
+                            <strong>机器人信息:</strong> 
+                            ${response.bot_name} (ID: ${response.bot_id})
+                            <div class="small text-muted mt-1">最后检查: ${response.last_check || '未知'}</div>
+                        </div>
+                    `);
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

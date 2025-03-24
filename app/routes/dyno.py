@@ -4,12 +4,13 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import (
     Group, User, AutoModSetting, WelcomeMessage, 
-    CustomCommand, LevelSystem, UserLevel, LogSetting, MusicSetting, SystemCommand
+    CustomCommand, LevelSystem, UserLevel, LogSetting, MusicSetting, SystemCommand, DiscordBot
 )
 from app.discord.client import DiscordClient
 import json
 from datetime import datetime
 import requests
+import os
 
 dyno_bp = Blueprint('dyno', __name__)
 
@@ -706,3 +707,185 @@ def save_command_settings(group_id):
     except Exception as e:
         current_app.logger.error(f"保存命令设置时出错: {str(e)}")
         return jsonify(success=False, error=str(e))
+
+# BOT管理路由
+@dyno_bp.route('/bot', methods=['GET'])
+@login_required
+def bot_dashboard():
+    """Discord机器人管理面板"""
+    # 查询全局机器人和用户关联群组的机器人
+    global_bot = DiscordBot.query.filter_by(group_id=None).first()
+    
+    # 获取用户管理的群组
+    user_groups = Group.query.filter(
+        (Group.owner_id == current_user.id) |
+        (Group.id.in_(db.session.query(group_members.c.group_id).filter(
+            (group_members.c.user_id == current_user.id) &
+            (group_members.c.role == 'admin')
+        )))
+    ).all()
+    
+    # 获取这些群组关联的机器人
+    group_bots = DiscordBot.query.filter(DiscordBot.group_id.in_([g.id for g in user_groups])).all()
+    
+    return render_template('dyno/bot.html', 
+                          global_bot=global_bot, 
+                          group_bots=group_bots,
+                          user_groups=user_groups)
+
+@dyno_bp.route('/bot/activate', methods=['POST'])
+@login_required
+def activate_bot():
+    """激活Discord机器人"""
+    bot_id = request.form.get('bot_id')
+    bot_token = request.form.get('bot_token')
+    group_id = request.form.get('group_id')
+    
+    # 验证是否有权限管理此机器人
+    if group_id and group_id != 'global':
+        group = Group.query.get_or_404(int(group_id))
+        if current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
+            flash('您没有权限管理此群组的机器人', 'danger')
+            return redirect(url_for('dyno.bot_dashboard'))
+    elif not current_user.is_admin:
+        flash('只有管理员可以管理全局机器人', 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))
+    
+    try:
+        # 如果提供了bot_id，则更新现有机器人
+        if bot_id:
+            bot = DiscordBot.query.get_or_404(int(bot_id))
+            if bot_token:
+                bot.bot_token = bot_token
+            bot.activate()
+            
+            # 设置环境变量
+            os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
+            # 更新DiscordClient的静态变量
+            from app.discord.client import DiscordClient
+            DiscordClient.DISCORD_BOT_TOKEN = bot.bot_token
+            
+            flash('成功激活Discord机器人', 'success')
+        else:
+            # 创建新机器人
+            if not bot_token:
+                flash('请提供机器人令牌', 'warning')
+                return redirect(url_for('dyno.bot_dashboard'))
+            
+            # 创建机器人记录
+            bot = DiscordBot(
+                bot_token=bot_token,
+                group_id=int(group_id) if group_id and group_id != 'global' else None,
+                is_active=True,
+                status='online',
+                last_activated=datetime.utcnow()
+            )
+            db.session.add(bot)
+            db.session.commit()
+            
+            # 设置环境变量
+            os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
+            # 更新DiscordClient的静态变量
+            from app.discord.client import DiscordClient
+            DiscordClient.DISCORD_BOT_TOKEN = bot.bot_token
+            
+            flash('成功创建并激活Discord机器人', 'success')
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"激活Discord机器人失败: {str(e)}")
+        flash(f'激活Discord机器人失败: {str(e)}', 'danger')
+    
+    return redirect(url_for('dyno.bot_dashboard'))
+
+@dyno_bp.route('/bot/deactivate/<int:bot_id>', methods=['POST'])
+@login_required
+def deactivate_bot(bot_id):
+    """停用Discord机器人"""
+    bot = DiscordBot.query.get_or_404(bot_id)
+    
+    # 验证是否有权限管理此机器人
+    if bot.group_id:
+        group = Group.query.get_or_404(bot.group_id)
+        if current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
+            flash('您没有权限管理此群组的机器人', 'danger')
+            return redirect(url_for('dyno.bot_dashboard'))
+    elif not current_user.is_admin:
+        flash('只有管理员可以管理全局机器人', 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))
+    
+    try:
+        bot.deactivate()
+        
+        # 如果这是当前激活的机器人，清除环境变量
+        if os.environ.get('DISCORD_BOT_TOKEN') == bot.bot_token:
+            os.environ['DISCORD_BOT_TOKEN'] = ''
+            # 更新DiscordClient的静态变量
+            from app.discord.client import DiscordClient
+            DiscordClient.DISCORD_BOT_TOKEN = ''
+        
+        flash('成功停用Discord机器人', 'success')
+    except Exception as e:
+        current_app.logger.error(f"停用Discord机器人失败: {str(e)}")
+        flash(f'停用Discord机器人失败: {str(e)}', 'danger')
+    
+    return redirect(url_for('dyno.bot_dashboard'))
+
+@dyno_bp.route('/bot/check-status/<int:bot_id>')
+@login_required
+def check_bot_status(bot_id):
+    """检查Discord机器人状态"""
+    bot = DiscordBot.query.get_or_404(bot_id)
+    
+    # 验证是否有权限查看此机器人
+    if bot.group_id:
+        group = Group.query.get_or_404(bot.group_id)
+        if current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
+            return jsonify({'status': 'error', 'message': '无权限'})
+    elif not current_user.is_admin:
+        return jsonify({'status': 'error', 'message': '无权限'})
+    
+    try:
+        # 使用机器人令牌测试API连接
+        from app.discord.client import DiscordClient
+        old_token = DiscordClient.DISCORD_BOT_TOKEN
+        DiscordClient.DISCORD_BOT_TOKEN = bot.bot_token
+        
+        # 测试获取当前用户信息
+        headers = {
+            'Authorization': f'Bot {bot.bot_token}',
+            'Content-Type': 'application/json'
+        }
+        url = 'https://discord.com/api/v10/users/@me'
+        
+        response = requests.get(url, headers=headers)
+        
+        # 恢复原始令牌
+        DiscordClient.DISCORD_BOT_TOKEN = old_token
+        
+        if response.status_code == 200:
+            bot_info = response.json()
+            bot.update_status('online')
+            return jsonify({
+                'status': 'online',
+                'bot_name': bot_info.get('username'),
+                'bot_id': bot_info.get('id'),
+                'last_check': bot.last_status_check.strftime('%Y-%m-%d %H:%M:%S') if bot.last_status_check else None
+            })
+        else:
+            error_message = f"API错误: {response.status_code} - {response.text}"
+            bot.update_status('error', error_message)
+            return jsonify({
+                'status': 'error',
+                'message': error_message,
+                'last_check': bot.last_status_check.strftime('%Y-%m-%d %H:%M:%S') if bot.last_status_check else None
+            })
+            
+    except Exception as e:
+        error_message = str(e)
+        bot.update_status('error', error_message)
+        return jsonify({
+            'status': 'error',
+            'message': error_message,
+            'last_check': bot.last_status_check.strftime('%Y-%m-%d %H:%M:%S') if bot.last_status_check else None
+        })

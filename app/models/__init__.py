@@ -5,7 +5,7 @@ from app.models.event import Event, event_participants
 from app.models.dyno import (
     AutoModSetting, WelcomeMessage, CustomCommand, 
     LevelSystem, UserLevel, LogSetting, MusicSetting,
-    SystemCommand, CommandCategorySetting
+    SystemCommand, CommandCategorySetting, DiscordBot
 )
 
 # 导出所有模型，方便其他地方使用
@@ -25,5 +25,6 @@ __all__ = [
     'LogSetting',
     'MusicSetting',
     'SystemCommand', 
-    'CommandCategorySetting'
+    'CommandCategorySetting',
+    'DiscordBot'
 ]

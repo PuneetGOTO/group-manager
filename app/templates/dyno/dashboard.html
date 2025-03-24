@@ -12,26 +12,26 @@
                     <i class="fas fa-cogs me-2"></i> Dyno 功能
                 </div>
                 <div class="list-group list-group-flush">
-                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action active">
-                        <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                    <a href="{{ url_for('dyno.dashboard', group_id=group.id) }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.dashboard', group_id=group.id) %}active{% endif %}">
+                        <i class="fas fa-tachometer-alt me-2"></i> 控制面板
                     </a>
-                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action">
+                    <a href="{{ url_for('dyno.automod', group_id=group.id) }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.automod', group_id=group.id) %}active{% endif %}">
                         <i class="fas fa-shield-alt me-2"></i> 自动审核
                     </a>
-                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-door-open me-2"></i> 欢迎消息
+                    <a href="{{ url_for('dyno.welcome', group_id=group.id) }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.welcome', group_id=group.id) %}active{% endif %}">
+                        <i class="fas fa-door-open me-2"></i> 欢迎设置
                     </a>
-                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-terminal me-2"></i> 自定义命令
+                    <a href="{{ url_for('dyno.commands', group_id=group.id) }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.commands', group_id=group.id) %}active{% endif %}">
+                        <i class="fas fa-terminal me-2"></i> 命令系统
                     </a>
-                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-chart-line me-2"></i> 等级系统
+                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.logs', group_id=group.id) %}active{% endif %}">
+                        <i class="fas fa-clipboard-list me-2"></i> 日志设置
                     </a>
-                    <a href="{{ url_for('dyno.logs', group_id=group.id) }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-clipboard-list me-2"></i> 服务器日志
+                    <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.levels', group_id=group.id) %}active{% endif %}">
+                        <i class="fas fa-star me-2"></i> 等级系统
                     </a>
-                    <a href="{{ url_for('dyno.music', group_id=group.id) }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-music me-2"></i> 音乐播放
+                    <a href="{{ url_for('dyno.bot') }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.bot') %}active{% endif %}">
+                        <i class="fas fa-robot me-2"></i> 机器人管理
                     </a>
                 </div>
             </div>
