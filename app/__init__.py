@@ -47,6 +47,7 @@ def create_app():
     from app.routes.groups import groups_bp
     from app.routes.user import user_bp
     from app.routes.discord import discord_bp
+    from app.routes.dyno import dyno_bp
     
     # 注册自定义模板过滤器
     @app.template_filter('bitwise_and')
@@ -61,5 +62,6 @@ def create_app():
     app.register_blueprint(groups_bp, url_prefix='/groups')
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(discord_bp, url_prefix='/discord')
+    app.register_blueprint(dyno_bp, url_prefix='/dyno')
     
     return app
