@@ -63,6 +63,32 @@ class User(db.Model, UserMixin):
         result = db.session.execute(stmt).first()
         return result[0] if result else None
     
+    def can_manage_group(self, group_id):
+        """检查用户是否有权限管理群组
+        
+        权限条件：用户是群组的所有者或者是管理员角色
+        
+        Args:
+            group_id: 群组ID
+            
+        Returns:
+            布尔值，表示是否有权限
+        """
+        from app.models.group import Group
+        
+        # 如果用户是系统管理员，直接授权
+        if self.is_admin:
+            return True
+            
+        # 检查是否是群组所有者
+        group = Group.query.get(group_id)
+        if group and group.owner_id == self.id:
+            return True
+            
+        # 检查是否是群组管理员
+        role = self.get_role_in_group(group_id)
+        return role == 'admin'
+    
     def is_connected_to_discord(self):
         """检查用户是否已连接Discord账号"""
         return bool(self.discord_id)
