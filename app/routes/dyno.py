@@ -734,92 +734,6 @@ def bot_dashboard():
                           group_bots=group_bots,
                           user_groups=user_groups)
 
-@dyno_bp.route('/bot/activate', methods=['POST'])
-@login_required
-def activate_bot():
-    """激活Discord机器人"""
-    bot_id = request.form.get('bot_id')
-    bot_token = request.form.get('bot_token')
-    group_id = request.form.get('group_id')
-    
-    # 验证是否有权限管理此机器人
-    if group_id and group_id != 'global':
-        group = Group.query.get_or_404(int(group_id))
-        if current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
-            flash('您没有权限管理此群组的机器人', 'danger')
-            return redirect(url_for('dyno.bot_dashboard'))
-    elif not current_user.is_admin:
-        flash('只有管理员可以管理全局机器人', 'danger')
-        return redirect(url_for('dyno.bot_dashboard'))
-    
-    try:
-        # 如果提供了bot_id，则更新现有机器人
-        if bot_id:
-            bot = DiscordBot.query.get_or_404(int(bot_id))
-            if bot_token:
-                bot.bot_token = bot_token
-            
-            # 尝试启动实际的Discord机器人进程
-            from app.discord.bot_client import start_bot_process
-            try:
-                process_id = start_bot_process(bot.bot_token)
-                if process_id:
-                    # 只有当进程成功启动后才更新状态
-                    bot.activate()
-                    bot.error_message = None  # 清除之前的错误消息
-                    
-                    # 设置环境变量
-                    os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
-                    
-                    flash('成功激活Discord机器人，机器人已开始运行', 'success')
-                else:
-                    bot.update_status('error', '无法启动Discord机器人进程')
-                    flash('机器人令牌可能有误或连接Discord API时出现问题', 'danger')
-            except Exception as e:
-                bot.update_status('error', f'启动失败: {str(e)}')
-                flash(f'启动Discord机器人失败: {str(e)}', 'danger')
-            
-        else:
-            # 创建新机器人
-            if not bot_token:
-                flash('请提供机器人令牌', 'warning')
-                return redirect(url_for('dyno.bot_dashboard'))
-            
-            # 先尝试启动机器人进程
-            from app.discord.bot_client import start_bot_process
-            try:
-                process_id = start_bot_process(bot_token)
-                if process_id:
-                    # 只有当进程成功启动后才创建数据库记录
-                    # 创建机器人记录
-                    bot = DiscordBot(
-                        bot_token=bot_token,
-                        group_id=int(group_id) if group_id and group_id != 'global' else None,
-                        is_active=True,
-                        status='online',
-                        last_activated=datetime.utcnow()
-                    )
-                    db.session.add(bot)
-                    db.session.commit()
-                    
-                    # 设置环境变量
-                    os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
-                    
-                    flash('成功创建并激活Discord机器人，机器人已开始运行', 'success')
-                else:
-                    flash('无法启动Discord机器人进程，请检查令牌是否有效', 'danger')
-                    return redirect(url_for('dyno.bot_dashboard'))
-            except Exception as e:
-                flash(f'创建并启动Discord机器人失败: {str(e)}', 'danger')
-                return redirect(url_for('dyno.bot_dashboard'))
-            
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"激活Discord机器人失败: {str(e)}")
-        flash(f'激活Discord机器人失败: {str(e)}', 'danger')
-    
-    return redirect(url_for('dyno.bot_dashboard'))
-
 @dyno_bp.route('/bot/deactivate/<int:bot_id>', methods=['POST'])
 @login_required
 def deactivate_bot(bot_id):
@@ -837,19 +751,21 @@ def deactivate_bot(bot_id):
         return redirect(url_for('dyno.bot_dashboard'))
     
     try:
-        # 停止实际运行的机器人进程
-        from app.discord.bot_client import stop_bot_process
-        stop_bot_process()
-        
-        # 更新数据库状态
+        # 在数据库中更新机器人状态
         bot.deactivate()
         
-        flash('成功停用Discord机器人', 'success')
+        # 停止Discord机器人进程
+        from app.discord.bot_client import stop_bot_process
+        
+        if stop_bot_process():
+            flash('机器人已成功停用，进程已终止', 'success')
+        else:
+            flash('机器人在数据库中已停用，但无法找到运行的进程', 'warning')
+        
+        return redirect(url_for('dyno.bot_dashboard'))
     except Exception as e:
-        current_app.logger.error(f"停用Discord机器人失败: {str(e)}")
-        flash(f'停用Discord机器人失败: {str(e)}', 'danger')
-    
-    return redirect(url_for('dyno.bot_dashboard'))
+        flash('停用机器人时发生错误: {}'.format(str(e)), 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))
 
 @dyno_bp.route('/bot/check-status/<int:bot_id>', methods=['POST'])
 @login_required
@@ -866,18 +782,89 @@ def check_bot_status(bot_id):
         return jsonify({'success': False, 'message': '只有管理员可以管理全局机器人'})
     
     try:
-        # 使用新的状态检查函数
-        from app.discord.bot_client import check_bot_status
-        status, error_message = check_bot_status(bot.bot_token)
+        # 检查Discord机器人状态
+        from app.discord.bot_client import check_bot_status as check_status
         
-        # 更新数据库中的机器人状态
-        bot.update_status(status, error_message)
+        status, error = check_status(bot.bot_token)
         
-        return jsonify({
-            'success': True, 
-            'status': status,
-            'error_message': error_message
-        })
+        if status == 'online':
+            # 更新数据库状态
+            bot.update_status('online')
+            return jsonify({
+                'success': True, 
+                'status': 'online',
+                'message': '机器人已连接到Discord并正常运行'
+            })
+        elif status == 'error':
+            # 更新数据库状态
+            bot.update_status('error', error)
+            return jsonify({
+                'success': False, 
+                'status': 'error',
+                'message': f'机器人状态检查失败: {error}'
+            })
+        else:
+            # 更新数据库状态
+            bot.update_status('offline')
+            return jsonify({
+                'success': False, 
+                'status': 'offline',
+                'message': '机器人未连接到Discord'
+            })
     except Exception as e:
-        current_app.logger.error(f"检查Discord机器人状态失败: {str(e)}")
-        return jsonify({'success': False, 'message': f'检查机器人状态失败: {str(e)}'})
+        return jsonify({
+            'success': False, 
+            'status': 'error',
+            'message': f'检查机器人状态时发生错误: {str(e)}'
+        })
+
+@dyno_bp.route('/bot/activate', methods=['POST'])
+@login_required
+def activate_bot():
+    """激活Discord机器人"""
+    if not current_user.is_authenticated:
+        flash('请先登录', 'danger')
+        return redirect(url_for('login'))
+
+    bot_id = request.form.get('bot_id', None)
+    if not bot_id:
+        flash('机器人ID不能为空', 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))
+
+    # 验证权限
+    bot = DiscordBot.query.get(bot_id)
+    if not bot:
+        flash('无法找到该机器人', 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))
+
+    if not bot.can_manage(current_user):
+        flash('您没有权限管理此机器人', 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))
+
+    try:
+        # 在数据库中更新机器人状态
+        bot.activate()
+        
+        # 启动实际的Discord机器人进程
+        from app.discord.bot_client import start_bot_process, check_bot_status
+        
+        # 先检查机器人当前状态
+        status, error = check_bot_status(bot.bot_token)
+        if status == 'online':
+            flash('机器人已经在线', 'success')
+            return redirect(url_for('dyno.bot_dashboard'))
+        
+        # 启动机器人进程
+        process_id = start_bot_process(bot.bot_token)
+        
+        if process_id:
+            flash('机器人已成功激活，进程ID: {}'.format(process_id), 'success')
+        else:
+            # 如果启动失败，仍然保持数据库中的状态为激活
+            # 因为用户可能会手动启动机器人
+            flash('机器人在数据库中已激活，但进程启动失败，请检查日志', 'warning')
+        
+        return redirect(url_for('dyno.bot_dashboard'))
+    except Exception as e:
+        flash('激活机器人时发生错误: {}'.format(str(e)), 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))

@@ -26,8 +26,9 @@ class BotClient(commands.Bot):
     def __init__(self, token, command_prefix="!", intents=None):
         if intents is None:
             intents = discord.Intents.default()
-            intents.message_content = True
-            intents.members = True
+            # 注意：需要在Discord开发者门户中启用这些特权意图
+            intents.message_content = False  # 设置为False以避免特权意图错误
+            intents.members = False  # 设置为False以避免特权意图错误
         
         super().__init__(command_prefix=command_prefix, intents=intents)
         self.token = token
@@ -109,61 +110,117 @@ def run_bot(token):
     return True
 
 def start_bot_process(token):
-    """
-    在单独的进程中启动Discord机器人
-    返回进程ID或None（如果启动失败）
+    """启动Discord机器人进程
+    
+    Args:
+        token: Discord机器人令牌
+        
+    Returns:
+        进程ID或None（如果启动失败）
     """
     global DISCORD_BOT_PROCESS
     
-    # 如果已经有机器人进程在运行，先停止它
-    if DISCORD_BOT_PROCESS is not None:
-        stop_bot_process()
-    
     try:
-        # 创建一个新的Python进程来运行机器人
-        cmd = [
-            sys.executable,
-            '-c',
-            f'from app.discord.bot_client import run_bot; run_bot("{token}")'
-        ]
+        # 获取项目根目录
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        
+        # 使用新的bot_runner.py脚本
+        bot_runner_path = os.path.join(os.path.dirname(__file__), 'bot_runner.py')
+        
+        if not os.path.exists(bot_runner_path):
+            logger.error(f"找不到机器人运行器脚本: {bot_runner_path}")
+            return None
+        
+        # 准备环境变量
+        env = os.environ.copy()
+        env['DISCORD_BOT_TOKEN'] = token
         
         # 启动进程
+        logger.info(f"正在启动Discord机器人进程...")
+        
+        # 在Windows上使用pythonw.exe来避免显示命令窗口
+        if os.name == 'nt':
+            cmd = ['pythonw', bot_runner_path]
+        else:
+            cmd = ['python3', bot_runner_path]
+            
         DISCORD_BOT_PROCESS = subprocess.Popen(
             cmd,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
         )
+        
+        # 记录进程ID到文件
+        pid_file = os.path.join(base_dir, 'discord_bot.pid')
+        with open(pid_file, 'w') as f:
+            f.write(str(DISCORD_BOT_PROCESS.pid))
         
         logger.info(f"Discord机器人进程已启动，PID: {DISCORD_BOT_PROCESS.pid}")
         return DISCORD_BOT_PROCESS.pid
+        
     except Exception as e:
         logger.error(f"启动Discord机器人进程时出错: {str(e)}")
-        DISCORD_BOT_PROCESS = None
         return None
 
 def stop_bot_process():
-    """停止Discord机器人进程"""
+    """停止Discord机器人进程
+    
+    Returns:
+        布尔值，表示是否成功停止进程
+    """
     global DISCORD_BOT_PROCESS
     
-    if DISCORD_BOT_PROCESS is not None:
-        try:
-            # 尝试正常终止进程
-            DISCORD_BOT_PROCESS.terminate()
-            # 等待进程结束，最多等待5秒
-            try:
-                DISCORD_BOT_PROCESS.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                # 如果进程没有在5秒内终止，强制结束它
-                DISCORD_BOT_PROCESS.kill()
+    try:
+        # 首先尝试使用全局变量中的进程
+        if DISCORD_BOT_PROCESS:
+            logger.info(f"正在停止Discord机器人进程 (PID: {DISCORD_BOT_PROCESS.pid})...")
             
-            logger.info(f"Discord机器人进程已停止，PID: {DISCORD_BOT_PROCESS.pid}")
-        except Exception as e:
-            logger.error(f"停止Discord机器人进程时出错: {str(e)}")
-        finally:
+            if os.name == 'nt':
+                # Windows上使用taskkill来终止进程树
+                subprocess.call(['taskkill', '/F', '/T', '/PID', str(DISCORD_BOT_PROCESS.pid)])
+            else:
+                # Unix/Linux上使用kill命令
+                os.kill(DISCORD_BOT_PROCESS.pid, signal.SIGTERM)
+                
             DISCORD_BOT_PROCESS = None
+            logger.info("Discord机器人进程已停止")
+            return True
             
-    return True
+        # 如果全局变量中没有进程，尝试从PID文件中获取
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        pid_file = os.path.join(base_dir, 'discord_bot.pid')
+        
+        if os.path.exists(pid_file):
+            with open(pid_file, 'r') as f:
+                try:
+                    pid = int(f.read().strip())
+                    logger.info(f"从PID文件中找到Discord机器人进程 (PID: {pid})...")
+                    
+                    if os.name == 'nt':
+                        # Windows上使用taskkill
+                        subprocess.call(['taskkill', '/F', '/T', '/PID', str(pid)])
+                    else:
+                        # Unix/Linux上使用kill命令
+                        os.kill(pid, signal.SIGTERM)
+                    
+                    # 删除PID文件
+                    os.remove(pid_file)
+                    logger.info("Discord机器人进程已停止")
+                    return True
+                except (ValueError, ProcessLookupError):
+                    # 无效的PID或者进程已经不存在
+                    if os.path.exists(pid_file):
+                        os.remove(pid_file)
+                    logger.warning("找不到运行中的Discord机器人进程")
+        
+        logger.warning("没有找到运行中的Discord机器人进程")
+        return False
+            
+    except Exception as e:
+        logger.error(f"停止Discord机器人进程时出错: {str(e)}")
+        return False
 
 def check_bot_status(token):
     """
