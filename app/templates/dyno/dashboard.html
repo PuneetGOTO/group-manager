@@ -30,7 +30,7 @@
                     <a href="{{ url_for('dyno.levels', group_id=group.id) }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.levels', group_id=group.id) %}active{% endif %}">
                         <i class="fas fa-star me-2"></i> 等级系统
                     </a>
-                    <a href="{{ url_for('dyno.bot') }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.bot') %}active{% endif %}">
+                    <a href="{{ url_for('dyno.bot_dashboard') }}" class="list-group-item list-group-item-action {% if request.path == url_for('dyno.bot_dashboard') %}active{% endif %}">
                         <i class="fas fa-robot me-2"></i> 机器人管理
                     </a>
                 </div>
