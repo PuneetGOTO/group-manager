@@ -313,7 +313,8 @@ def get_guild_channels(token, guild_id):
             # 只保留文本频道，并添加分类信息
             text_channels = []
             for channel in channels:
-                if channel['type'] == 0:  # 0 表示文本频道
+                # 支持更多类型的频道: 0=文本频道, 5=公告频道, 11=公共线程, 12=私有线程
+                if channel['type'] in [0, 5, 11, 12]:  
                     parent_id = channel.get('parent_id')
                     channel_info = {
                         'id': channel['id'], 
@@ -324,7 +325,7 @@ def get_guild_channels(token, guild_id):
                     }
                     text_channels.append(channel_info)
             
-            logger.info(f"获取到 {len(text_channels)} 个文本频道")
+            logger.info(f"获取到 {len(text_channels)} 个频道")
             return text_channels
         elif response.status_code == 401:
             logger.error(f"获取频道列表失败: 身份验证错误 (401)，请检查机器人令牌是否有效且有足够权限")

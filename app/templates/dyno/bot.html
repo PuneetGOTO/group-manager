@@ -100,19 +100,24 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
+                            <label class="form-label">欢迎频道 <small class="text-muted">(可选，留空表示所有频道)</small></label>
                             <div class="input-group">
-                                <input type="text" class="form-control" name="channel_ids" id="channel_ids_{{ global_bot.id }}" placeholder="输入频道ID，多个ID用逗号分隔" value="{{ global_bot.channel_ids }}">
-                                <div class="selected-channels-display form-text"></div>
-                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="channel_ids_{{ global_bot.id }}">
-                                    <i class="fas fa-list"></i>
+                                <input type="text" class="form-control" name="channel_ids" id="welcome_channel_ids" placeholder="输入频道ID，多个ID用逗号分隔" value="{{ global_bot.channel_ids }}">
+                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="welcome_channel_ids">
+                                    <i class="fas fa-list"></i> 选择频道
                                 </button>
+                                <span class="input-group-text selected-channels-display">
+                                    {% if global_bot.channel_ids %}
+                                        已选择 {{ global_bot.channel_ids.split(',') | length }} 个频道
+                                    {% else %}
+                                        所有频道
+                                    {% endif %}
+                                </span>
                             </div>
                             <div class="form-text">
                                 <small>例如：123456789,987654321</small>
                             </div>
                         </div>
-                        
                         <div class="bot-actions">
                             <button type="submit" class="btn btn-success">
                                 <i class="fas fa-play me-1"></i> 激活机器人
@@ -150,13 +155,13 @@
                             <div class="form-text">访问<a href="https://discord.com/developers/applications" target="_blank">Discord开发者门户</a>创建机器人并获取令牌</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
+                            <label class="form-label">欢迎频道 <small class="text-muted">(可选，留空表示所有频道)</small></label>
                             <div class="input-group">
-                                <input type="text" class="form-control" name="channel_ids" id="channel_ids_new" placeholder="输入频道ID，多个ID用逗号分隔">
-                                <div class="selected-channels-display form-text"></div>
-                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="channel_ids_new">
-                                    <i class="fas fa-list"></i>
+                                <input type="text" class="form-control" name="channel_ids" id="welcome_channel_ids_new" placeholder="输入频道ID，多个ID用逗号分隔">
+                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="welcome_channel_ids_new">
+                                    <i class="fas fa-list"></i> 选择频道
                                 </button>
+                                <span class="input-group-text selected-channels-display">所有频道</span>
                             </div>
                             <div class="form-text">
                                 <small>例如：123456789,987654321</small>
@@ -351,58 +356,72 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="channelSelectModalLabel">选择Discord频道</h5>
+                <h5 class="modal-title" id="channelSelectModalLabel">选择频道</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- 服务器选择和频道搜索 -->
                 <div class="row mb-3">
-                    <div class="col-lg-6">
+                    <div class="col-md-12">
                         <label for="guildSelect" class="form-label">选择服务器</label>
                         <select class="form-select" id="guildSelect">
-                            <option value="">请选择服务器</option>
+                            <option value="">选择服务器...</option>
                         </select>
                     </div>
-                    <div class="col-lg-6">
-                        <label for="channelSearch" class="form-label">搜索频道</label>
-                        <input type="text" class="form-control" id="channelSearch" placeholder="输入频道名称...">
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-12">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="channelSearch" placeholder="搜索频道...">
+                            <button class="btn btn-outline-secondary" type="button" id="searchBtn">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- 操作按钮 -->
-                <div class="d-flex justify-content-between mb-3 channel-actions" style="display: none !important;">
-                    <div>
-                        <button class="btn btn-sm btn-outline-primary" id="selectAllBtn">全选</button>
-                        <button class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">取消全选</button>
+                <div class="d-flex justify-content-between mb-2 align-items-center">
+                    <div class="channel-actions" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary" id="selectAllBtn">
+                            <i class="fas fa-check-square me-1"></i> 全选
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary ms-1" id="deselectAllBtn">
+                            <i class="fas fa-square me-1"></i> 取消全选
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger ms-1" id="clearSelectionsBtn">
+                            <i class="fas fa-trash-alt me-1"></i> 清空选择
+                        </button>
                     </div>
-                    <div>
-                        <span class="badge bg-primary" id="selectedCount">已选择: 0</span>
+                    <span class="badge bg-primary" id="selectedCount">已选择: 0</span>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div id="selectedChannelsList">
+                            <!-- 已选频道将显示在这里 -->
+                        </div>
                     </div>
                 </div>
                 
-                <!-- 频道选择区域 -->
-                <div id="channelSelectArea" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
-                    <div id="channelCheckboxes">
-                        <p class="text-muted">请先选择服务器</p>
-                    </div>
-                </div>
-                
-                <!-- 已选择频道的显示 -->
-                <div class="mt-3">
-                    <div class="d-flex justify-content-between">
-                        <label class="form-label">已选择的频道</label>
-                        <button type="button" class="btn btn-sm btn-link" id="clearSelectedBtn">清除所有</button>
-                    </div>
-                    <div id="selectedChannelsList" class="border rounded p-2" style="min-height: 42px;">
-                        <p class="text-muted text-center m-0">未选择任何频道</p>
-                    </div>
-                    <small class="text-muted">如果不选择任何频道，机器人将会响应所有频道的消息</small>
+                <div id="channelCheckboxes" class="mt-2 border p-2" style="max-height: 300px; overflow-y: auto;">
+                    <p class="text-muted">请先选择一个服务器</p>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="confirmChannelSelect">确定</button>
+                <button type="button" class="btn btn-primary" id="confirmChannelSelect">确认选择</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- 欢迎频道 -->
+<div class="row mb-3">
+    <label for="welcome_channel_ids" class="col-md-3 col-form-label">欢迎频道</label>
+    <div class="col-md-9">
+        <div class="input-group">
+            <input type="text" class="form-control" id="welcome_channel_ids" name="channel_ids" placeholder="频道ID，多个用逗号分隔" value="{{ bot.welcome_channel_ids or '' }}">
+            <button class="btn btn-outline-secondary select-channels-btn" type="button" data-input-id="welcome_channel_ids">选择频道...</button>
+            <span class="input-group-text selected-channels-display" id="welcome-channels-count">所有频道</span>
         </div>
     </div>
 </div>
@@ -527,7 +546,7 @@
         });
         
         // 清除所有已选频道
-        document.getElementById('clearSelectedBtn').addEventListener('click', function() {
+        document.getElementById('clearSelectionsBtn').addEventListener('click', function() {
             document.querySelectorAll('#channelCheckboxes input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = false;
             });
@@ -570,85 +589,189 @@
             }
         });
         
+        // 搜索频道
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            searchChannels();
+        });
+        
+        document.getElementById('channelSearch').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                searchChannels();
+            }
+        });
+        
+        function searchChannels() {
+            const searchText = document.getElementById('channelSearch').value.toLowerCase();
+            console.log('搜索频道:', searchText);
+            
+            const allChannels = document.querySelectorAll('#channelCheckboxes .form-check');
+            if (allChannels.length === 0) {
+                console.log('没有可搜索的频道');
+                return;
+            }
+            
+            let visibleCount = 0;
+            
+            allChannels.forEach(channelItem => {
+                const label = channelItem.querySelector('label');
+                if (!label) {
+                    channelItem.style.display = 'none';
+                    return;
+                }
+                
+                const channelName = label.textContent.toLowerCase();
+                
+                if (searchText === '' || channelName.includes(searchText)) {
+                    channelItem.style.display = '';
+                    visibleCount++;
+                } else {
+                    channelItem.style.display = 'none';
+                }
+            });
+            
+            // 处理搜索结果
+            const categoryHeaders = document.querySelectorAll('#channelCheckboxes h6');
+            categoryHeaders.forEach(header => {
+                const categoryDiv = header.closest('div');
+                const channels = categoryDiv.querySelectorAll('.form-check');
+                let visibleInCategory = 0;
+                
+                channels.forEach(channel => {
+                    if (channel.style.display !== 'none') {
+                        visibleInCategory++;
+                    }
+                });
+                
+                if (visibleInCategory === 0) {
+                    header.style.display = 'none';
+                } else {
+                    header.style.display = '';
+                }
+            });
+            
+            console.log('可见频道数:', visibleCount);
+        }
+        
         // 服务器选择变更时获取频道
         document.getElementById('guildSelect').addEventListener('change', function() {
             const guildId = this.value;
             const channelContainer = document.getElementById('channelCheckboxes');
             
+            // 清空频道容器
+            channelContainer.innerHTML = '';
+            document.querySelector('.channel-actions').style.display = 'none';
+            
+            // 如果没有选择服务器，直接返回
             if (!guildId) {
-                channelContainer.innerHTML = '<p class="text-muted">请先选择服务器</p>';
-                document.querySelector('.channel-actions').style.display = 'none';
+                channelContainer.innerHTML = '<p class="text-muted">请先选择一个服务器</p>';
                 return;
             }
             
-            channelContainer.innerHTML = '<p class="text-muted">加载中...</p>';
-            document.querySelector('.channel-actions').style.display = 'none';
-            
-            // 获取token
-            let tokenField = document.querySelector('form input[name="bot_token"]');
-            let token = tokenField ? tokenField.value : '';
+            // 获取当前token
+            let token = '';
+            const tokenField = document.querySelector('input[name="bot_token"]');
+            if (tokenField) {
+                token = tokenField.value;
+            }
             
             if (!token) {
                 channelContainer.innerHTML = '<p class="text-danger">无法获取机器人令牌</p>';
                 return;
             }
             
+            // 加载对应服务器的频道
             fetchDiscordChannels(guildId, token);
+        });
+    });
+    
+    // 修复欢迎频道选择
+    document.addEventListener('DOMContentLoaded', function() {
+        // 清理原有模态框和输入字段的关联
+        let allSelectedChannelsDisplays = document.querySelectorAll('.selected-channels-display');
+        let allSelectButtons = document.querySelectorAll('.select-channels-btn');
+        
+        // 确保欢迎频道输入字段正确初始化
+        document.querySelectorAll('input[name="welcome_channel_ids"], input[name="channel_ids"]').forEach(input => {
+            console.log('找到频道输入字段:', input.id, '值:', input.value);
+            
+            // 查找相邻的选择按钮和显示元素
+            const group = input.closest('.input-group');
+            const selectBtn = group.querySelector('.select-channels-btn');
+            const displayEl = group.querySelector('.selected-channels-display');
+            
+            if (selectBtn && !selectBtn.hasAttribute('data-initialized')) {
+                console.log('为选择按钮添加data-input-id属性:', input.id);
+                selectBtn.setAttribute('data-input-id', input.id);
+                selectBtn.setAttribute('data-initialized', 'true');
+            }
+            
+            // 设置初始显示
+            if (displayEl && input.value) {
+                const channelIds = input.value.split(',').filter(id => id.trim());
+                if (channelIds.length > 0) {
+                    displayEl.textContent = `已选择 ${channelIds.length} 个频道`;
+                } else {
+                    displayEl.textContent = '所有频道';
+                }
+                console.log('更新显示元素:', displayEl.textContent);
+            }
         });
     });
     
     // 更新已选频道UI的函数
     function updateSelectedChannelsUI() {
+        const selectedList = document.getElementById('selectedChannelsList');
         const selectedIds = Object.keys(selectedChannels);
         const selectedCount = selectedIds.length;
         
-        // 更新计数徽章
-        document.getElementById('selectedCount').textContent = `已选择: ${selectedCount}`;
-        
-        // 更新已选列表
-        const selectedChannelsList = document.getElementById('selectedChannelsList');
+        console.log('更新已选频道UI, 数量:', selectedCount);
         
         if (selectedCount === 0) {
-            selectedChannelsList.innerHTML = '<p class="text-muted text-center m-0">未选择任何频道</p>';
-            document.querySelector('.channel-actions').style.display = 'none';
-        } else {
-            selectedChannelsList.innerHTML = '';
-            document.querySelector('.channel-actions').style.display = 'flex';
+            selectedList.innerHTML = '<div class="alert alert-light text-center mb-0">未选择任何频道</div>';
+            document.getElementById('selectedCount').textContent = '已选择: 0';
+            return;
+        }
+        
+        // 清空当前列表
+        selectedList.innerHTML = '';
+        document.getElementById('selectedCount').textContent = `已选择: ${selectedCount}`;
+        
+        // 创建标签容器
+        const tagContainer = document.createElement('div');
+        tagContainer.className = 'selected-channels-tags';
+        
+        // 为每个选中的频道创建标签
+        selectedIds.forEach(channelId => {
+            // 查找频道名称
+            const checkbox = document.querySelector(`input[value="${channelId}"]`);
+            const channelName = checkbox ? checkbox.nextElementSibling.textContent : `#${channelId}`;
             
-            // 创建已选频道的标签
-            selectedIds.forEach(id => {
-                // 尝试获取频道名称
-                let channelName = '未知频道';
-                const checkbox = document.querySelector(`#channel-${id}`);
+            // 创建标签
+            const tag = document.createElement('span');
+            tag.className = 'badge bg-secondary me-1 mb-1 selected-channel-tag';
+            tag.innerHTML = `${channelName} <i class="fas fa-times-circle remove-channel" data-channel-id="${channelId}"></i>`;
+            tagContainer.appendChild(tag);
+        });
+        
+        selectedList.appendChild(tagContainer);
+        
+        // 添加移除按钮的点击事件
+        document.querySelectorAll('.remove-channel').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const channelId = this.getAttribute('data-channel-id');
+                // 移除频道
+                delete selectedChannels[channelId];
+                
+                // 更新对应的复选框
+                const checkbox = document.querySelector(`input[value="${channelId}"]`);
                 if (checkbox) {
-                    const label = document.querySelector(`label[for="channel-${id}"]`);
-                    if (label) {
-                        channelName = label.textContent;
-                    }
+                    checkbox.checked = false;
                 }
                 
-                // 创建标签元素
-                const badge = document.createElement('span');
-                badge.className = 'badge bg-primary me-1 mb-1';
-                badge.innerHTML = `${channelName} <button type="button" class="btn-close btn-close-white" style="font-size: 0.5rem;" data-channel-id="${id}"></button>`;
-                
-                // 添加删除事件
-                badge.querySelector('.btn-close').addEventListener('click', function() {
-                    const channelId = this.getAttribute('data-channel-id');
-                    delete selectedChannels[channelId];
-                    
-                    // 更新复选框状态
-                    const checkbox = document.querySelector(`#channel-${channelId}`);
-                    if (checkbox) {
-                        checkbox.checked = false;
-                    }
-                    
-                    updateSelectedChannelsUI();
-                });
-                
-                selectedChannelsList.appendChild(badge);
+                // 更新UI
+                updateSelectedChannelsUI();
             });
-        }
+        });
     }
     
     // 获取Discord服务器列表
