@@ -6,6 +6,7 @@ from app.models import (
     Group, User, AutoModSetting, WelcomeMessage, 
     CustomCommand, LevelSystem, UserLevel, LogSetting, MusicSetting, SystemCommand, DiscordBot
 )
+from app.models.user import group_members
 from app.discord.client import DiscordClient
 import json
 from datetime import datetime
