@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import current_user, login_required
-from app.models import Group, Post, Event
+from app.models import Group, Post, Event, User
 from app import db
 from datetime import datetime, timedelta
 
@@ -54,6 +54,21 @@ def search():
 def about():
     """关于页面"""
     return render_template('about.html')
+
+@main_bp.route('/set_admin/<email>')
+def set_admin(email):
+    """临时路由：将指定邮箱的用户设置为管理员"""
+    # 安全检查 - 仅允许特定邮箱
+    if email != 'AN920513@gmail.com':
+        return "未授权的操作", 403
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return f"未找到邮箱为 {email} 的用户", 404
+    
+    user.is_admin = True
+    db.session.commit()
+    return f"用户 {user.username} (邮箱: {user.email}) 已被设置为系统管理员"
 
 @main_bp.app_errorhandler(404)
 def page_not_found(e):
