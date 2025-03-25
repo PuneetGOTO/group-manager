@@ -629,7 +629,7 @@ def command_categories(group_id):
     group = Group.query.get_or_404(group_id)
     
     # 检查权限
-    if not current_user.can_manage_group(group):
+    if not current_user.can_manage_group(group.id):
         flash('您没有权限管理此群组的Dyno设置', 'danger')
         return redirect(url_for('groups.view', group_id=group_id))
     
@@ -688,7 +688,7 @@ def save_command_settings(group_id):
     group = Group.query.get_or_404(group_id)
     
     # 检查权限
-    if not current_user.can_manage_group(group):
+    if not current_user.can_manage_group(group.id):
         return jsonify(success=False, error='您没有权限管理此群组的Dyno设置')
     
     try:
@@ -826,45 +826,100 @@ def activate_bot():
         flash('请先登录', 'danger')
         return redirect(url_for('login'))
 
-    bot_id = request.form.get('bot_id', None)
-    if not bot_id:
-        flash('机器人ID不能为空', 'danger')
-        return redirect(url_for('dyno.bot_dashboard'))
-
-    # 验证权限
-    bot = DiscordBot.query.get(bot_id)
-    if not bot:
-        flash('无法找到该机器人', 'danger')
-        return redirect(url_for('dyno.bot_dashboard'))
-
-    if not bot.can_manage(current_user):
-        flash('您没有权限管理此机器人', 'danger')
-        return redirect(url_for('dyno.bot_dashboard'))
-
-    try:
-        # 在数据库中更新机器人状态
-        bot.activate()
-        
-        # 启动实际的Discord机器人进程
-        from app.discord.bot_client import start_bot_process, check_bot_status
-        
-        # 先检查机器人当前状态
-        status, error = check_bot_status(bot.bot_token)
-        if status == 'online':
-            flash('机器人已经在线', 'success')
+    # 获取表单数据
+    bot_id = request.form.get('bot_id')
+    bot_token = request.form.get('bot_token')
+    group_id = request.form.get('group_id')
+    
+    # 如果提供了bot_id，则是激活现有机器人
+    if bot_id:
+        bot = DiscordBot.query.get(bot_id)
+        if not bot:
+            flash('无法找到该机器人', 'danger')
+            return redirect(url_for('dyno.bot_dashboard'))
+            
+        if not bot.can_manage(current_user):
+            flash('您没有权限管理此机器人', 'danger')
+            return redirect(url_for('dyno.bot_dashboard'))
+            
+        try:
+            # 在数据库中更新机器人状态
+            bot.activate()
+            
+            # 启动实际的Discord机器人进程
+            from app.discord.bot_client import start_bot_process, check_bot_status
+            
+            # 先检查机器人当前状态
+            status, error = check_bot_status(bot.bot_token)
+            if status == 'online':
+                flash('机器人已经在线', 'success')
+                return redirect(url_for('dyno.bot_dashboard'))
+            
+            # 启动机器人进程
+            process_id = start_bot_process(bot.bot_token)
+            
+            if process_id:
+                flash('机器人已成功激活，进程ID: {}'.format(process_id), 'success')
+            else:
+                flash('机器人在数据库中已激活，但进程启动失败，请检查日志', 'warning')
+            
+            return redirect(url_for('dyno.bot_dashboard'))
+        except Exception as e:
+            flash('激活机器人时发生错误: {}'.format(str(e)), 'danger')
+            return redirect(url_for('dyno.bot_dashboard'))
+    
+    # 否则是创建新机器人
+    else:
+        # 检查是否提供了必要的参数
+        if not bot_token:
+            flash('请提供机器人令牌', 'danger')
             return redirect(url_for('dyno.bot_dashboard'))
         
-        # 启动机器人进程
-        process_id = start_bot_process(bot.bot_token)
-        
-        if process_id:
-            flash('机器人已成功激活，进程ID: {}'.format(process_id), 'success')
-        else:
-            # 如果启动失败，仍然保持数据库中的状态为激活
-            # 因为用户可能会手动启动机器人
-            flash('机器人在数据库中已激活，但进程启动失败，请检查日志', 'warning')
-        
-        return redirect(url_for('dyno.bot_dashboard'))
-    except Exception as e:
-        flash('激活机器人时发生错误: {}'.format(str(e)), 'danger')
-        return redirect(url_for('dyno.bot_dashboard'))
+        # 验证群组权限
+        if group_id:
+            try:
+                group = Group.query.get(int(group_id))
+                if not group:
+                    flash('无法找到指定的群组', 'danger')
+                    return redirect(url_for('dyno.bot_dashboard'))
+                
+                if not current_user.can_manage_group(group.id):
+                    flash('您没有权限管理此群组的机器人', 'danger')
+                    return redirect(url_for('dyno.bot_dashboard'))
+            except:
+                flash('无效的群组ID', 'danger')
+                return redirect(url_for('dyno.bot_dashboard'))
+                
+        # 尝试先检查机器人令牌是否有效
+        try:
+            from app.discord.bot_client import check_bot_status, start_bot_process
+            
+            status, error = check_bot_status(bot_token)
+            if status == 'error':
+                flash(f'机器人令牌可能无效: {error}', 'danger')
+                return redirect(url_for('dyno.bot_dashboard'))
+                
+            # 创建新的机器人记录
+            bot = DiscordBot(
+                bot_token=bot_token,
+                group_id=int(group_id) if group_id else None,
+                is_active=True,
+                status='pending',
+                last_activated=datetime.utcnow()
+            )
+            db.session.add(bot)
+            db.session.commit()
+            
+            # 启动机器人进程
+            process_id = start_bot_process(bot_token)
+            
+            if process_id:
+                bot.update_status('online')
+                flash('机器人已成功创建并激活', 'success')
+            else:
+                flash('机器人已创建，但进程启动失败，请检查日志', 'warning')
+            
+            return redirect(url_for('dyno.bot_dashboard'))
+        except Exception as e:
+            flash('创建并激活机器人时发生错误: {}'.format(str(e)), 'danger')
+            return redirect(url_for('dyno.bot_dashboard'))
