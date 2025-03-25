@@ -930,3 +930,48 @@ def activate_bot():
         except Exception as e:
             flash('创建并激活机器人时发生错误: {}'.format(str(e)), 'danger')
             return redirect(url_for('dyno.bot_dashboard'))
+
+# Discord频道API路由
+@dyno_bp.route('/api/discord/channels', methods=['POST'])
+@login_required
+def get_discord_channels():
+    """获取Discord服务器的频道列表，用于AJAX请求"""
+    token = request.form.get('token')
+    guild_id = request.form.get('guild_id')
+    
+    if not token or not guild_id:
+        return jsonify({'success': False, 'error': '缺少必要参数'})
+    
+    try:
+        from app.discord.bot_client import get_guild_channels
+        channels = get_guild_channels(token, guild_id)
+        
+        # 返回频道列表
+        return jsonify({
+            'success': True, 
+            'channels': channels
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# Discord服务器API路由
+@dyno_bp.route('/api/discord/guilds', methods=['POST'])
+@login_required
+def get_discord_guilds():
+    """获取机器人所在的Discord服务器列表，用于AJAX请求"""
+    token = request.form.get('token')
+    
+    if not token:
+        return jsonify({'success': False, 'error': '缺少机器人令牌'})
+    
+    try:
+        from app.discord.bot_client import get_bot_guilds
+        guilds = get_bot_guilds(token)
+        
+        # 返回服务器列表
+        return jsonify({
+            'success': True, 
+            'guilds': guilds
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

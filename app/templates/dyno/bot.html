@@ -101,7 +101,12 @@
                         
                         <div class="mb-3">
                             <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
-                            <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                <button type="button" class="btn btn-outline-secondary select-channels-btn">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                            </div>
                             <div class="form-text">
                                 <small>例如：123456789,987654321</small>
                             </div>
@@ -145,7 +150,12 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
-                            <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                <button type="button" class="btn btn-outline-secondary select-channels-btn">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                            </div>
                             <div class="form-text">
                                 <small>例如：123456789,987654321</small>
                             </div>
@@ -215,7 +225,12 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
-                                    <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                        <button type="button" class="btn btn-outline-secondary select-channels-btn">
+                                            <i class="fas fa-list"></i>
+                                        </button>
+                                    </div>
                                     <div class="form-text">
                                         <small>例如：123456789,987654321</small>
                                     </div>
@@ -273,7 +288,12 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
-                                <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                    <button type="button" class="btn btn-outline-secondary select-channels-btn">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                </div>
                                 <div class="form-text">
                                     <small>例如：123456789,987654321</small>
                                 </div>
@@ -321,119 +341,200 @@
         </div>
     </div>
 </div>
+
+<!-- 频道选择模态框 -->
+<div class="modal fade" id="channelSelectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">选择Discord频道</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">选择服务器</label>
+                    <select id="guildSelect" class="form-select">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">选择频道</label>
+                    <div id="channelCheckboxes" class="form-check">
+                        <p class="text-muted">请先选择服务器</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveChannelSelection">确定</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
-    // 切换密码可见性
-    $('.toggle-password').click(function() {
-        const input = $(this).closest('.input-group').find('input');
-        const icon = $(this).find('i');
-        
-        if (input.attr('type') === 'password') {
-            input.attr('type', 'text');
-            icon.removeClass('fa-eye').addClass('fa-eye-slash');
-        } else {
-            input.attr('type', 'password');
-            icon.removeClass('fa-eye-slash').addClass('fa-eye');
-        }
-    });
-    
-    // 检查机器人状态
-    $('.check-status-btn').click(function() {
-        const botId = $(this).data('bot-id');
-        const button = $(this);
-        const originalText = button.html();
-        
-        button.html('<i class="fas fa-spinner fa-spin"></i> 检查中...');
-        button.prop('disabled', true);
-        
-        $.ajax({
-            url: '/dyno/bot/check-status/' + botId,
-            method: 'POST',
-            success: function(response) {
-                // 更新状态指示器
-                const statusContainer = button.closest('div').find('.bot-status');
-                statusContainer.removeClass('status-online status-offline status-error');
-                
-                // 更新机器人信息容器
-                const infoContainer = $('.bot-info-container[data-bot-id="' + botId + '"]');
-                
-                if (response.success && response.status === 'online') {
-                    statusContainer.addClass('status-online');
-                    button.closest('div').find('span:not(.bot-status)').text('在线').removeClass('text-danger text-secondary').addClass('text-success');
-                    
-                    // 显示机器人信息
-                    infoContainer.html(`
-                        <div class="alert alert-success">
-                            <strong>机器人信息:</strong> 机器人成功连接到Discord并已激活
-                        </div>
-                    `);
-                } else if (response.success && response.status === 'offline') {
-                    statusContainer.addClass('status-offline');
-                    button.closest('div').find('span:not(.bot-status)').text('离线').removeClass('text-success text-danger').addClass('text-secondary');
-                    
-                    // 显示离线信息
-                    infoContainer.html(`
-                        <div class="alert alert-warning">
-                            <strong>离线状态:</strong> ${response.error_message || '机器人当前未运行'}
-                        </div>
-                    `);
+    document.addEventListener('DOMContentLoaded', function() {
+        // 切换密码可见性
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentElement.querySelector('.token-input');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i>';
                 } else {
-                    statusContainer.addClass('status-error');
-                    button.closest('div').find('span:not(.bot-status)').text('错误').removeClass('text-success text-secondary').addClass('text-danger');
-                    
-                    // 显示错误信息
-                    infoContainer.html(`
-                        <div class="alert alert-danger">
-                            <strong>错误信息:</strong> ${response.error_message || response.message || '未知错误'}
-                        </div>
-                    `);
+                    input.type = 'password';
+                    this.innerHTML = '<i class="fas fa-eye"></i>';
                 }
-            },
-            error: function() {
-                alert('检查状态失败，请重试');
-            },
-            complete: function() {
-                button.html(originalText);
-                button.prop('disabled', false);
-            }
+            });
         });
-    });
-    
-    // 页面加载后自动检查在线机器人状态
-    $('.bot-info-container').each(function() {
-        const botId = $(this).data('bot-id');
-        const container = $(this);
         
-        $.ajax({
-            url: '/dyno/bot/check-status/' + botId,
-            method: 'POST',
-            success: function(response) {
-                if (response.success && response.status === 'online') {
-                    container.html(`
-                        <div class="alert alert-success">
-                            <strong>机器人信息:</strong> 机器人成功连接到Discord并已激活
-                        </div>
-                    `);
-                } else if (response.success && response.status === 'offline') {
-                    container.html(`
-                        <div class="alert alert-warning">
-                            <strong>离线状态:</strong> ${response.error_message || '机器人当前未运行'}
-                        </div>
-                    `);
-                } else if (!container.html().trim()) {
-                    // 如果容器为空，显示错误信息
-                    container.html(`
-                        <div class="alert alert-danger">
-                            <strong>错误信息:</strong> ${response.error_message || response.message || '未知错误'}
-                        </div>
-                    `);
+        // 处理频道选择
+        const channelSelectModal = new bootstrap.Modal(document.getElementById('channelSelectModal'));
+        let currentInputField = null;
+        let selectedChannels = {};
+        
+        // 显示频道选择器
+        document.querySelectorAll('.select-channels-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                currentInputField = this.closest('.input-group').querySelector('input[name="channel_ids"]');
+                const tokenField = this.closest('form').querySelector('input[name="bot_token"]');
+                const token = tokenField.value;
+                
+                if (!token) {
+                    alert('请先输入机器人令牌以获取频道列表');
+                    return;
                 }
+                
+                // 如果已有选择，加载它们
+                if (currentInputField.value) {
+                    const channelIds = currentInputField.value.split(',');
+                    selectedChannels = {};
+                    
+                    channelIds.forEach(id => {
+                        selectedChannels[id.trim()] = true;
+                    });
+                } else {
+                    selectedChannels = {};
+                }
+                
+                // 获取服务器列表
+                fetchDiscordGuilds(token);
+                
+                channelSelectModal.show();
+            });
+        });
+        
+        // 获取Discord服务器列表
+        function fetchDiscordGuilds(token) {
+            const guildSelect = document.getElementById('guildSelect');
+            guildSelect.innerHTML = '<option value="">加载中...</option>';
+            
+            fetch('/dyno/api/discord/guilds', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `token=${encodeURIComponent(token)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    guildSelect.innerHTML = '<option value="">请选择服务器</option>';
+                    data.guilds.forEach(guild => {
+                        const option = document.createElement('option');
+                        option.value = guild.id;
+                        option.textContent = guild.name;
+                        guildSelect.appendChild(option);
+                    });
+                } else {
+                    guildSelect.innerHTML = '<option value="">获取服务器失败</option>';
+                    console.error(data.error);
+                }
+            })
+            .catch(error => {
+                guildSelect.innerHTML = '<option value="">获取服务器失败</option>';
+                console.error('获取服务器列表时出错:', error);
+            });
+        }
+        
+        // 服务器选择变更时获取频道
+        document.getElementById('guildSelect').addEventListener('change', function() {
+            const guildId = this.value;
+            const channelContainer = document.getElementById('channelCheckboxes');
+            
+            if (!guildId) {
+                channelContainer.innerHTML = '<p class="text-muted">请先选择服务器</p>';
+                return;
             }
+            
+            channelContainer.innerHTML = '<p class="text-muted">加载中...</p>';
+            
+            const tokenField = document.querySelector('form:has(input[name="bot_token"])').querySelector('input[name="bot_token"]');
+            const token = tokenField.value;
+            
+            // 获取频道列表
+            fetch('/dyno/api/discord/channels', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `token=${encodeURIComponent(token)}&guild_id=${encodeURIComponent(guildId)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    channelContainer.innerHTML = '';
+                    
+                    if (data.channels.length === 0) {
+                        channelContainer.innerHTML = '<p class="text-muted">没有可用的文本频道</p>';
+                        return;
+                    }
+                    
+                    data.channels.forEach(channel => {
+                        const div = document.createElement('div');
+                        div.className = 'form-check';
+                        
+                        const input = document.createElement('input');
+                        input.className = 'form-check-input channel-checkbox';
+                        input.type = 'checkbox';
+                        input.id = `channel-${channel.id}`;
+                        input.value = channel.id;
+                        input.checked = selectedChannels[channel.id] || false;
+                        
+                        const label = document.createElement('label');
+                        label.className = 'form-check-label';
+                        label.htmlFor = `channel-${channel.id}`;
+                        label.textContent = `#${channel.name}`;
+                        
+                        div.appendChild(input);
+                        div.appendChild(label);
+                        channelContainer.appendChild(div);
+                    });
+                } else {
+                    channelContainer.innerHTML = `<p class="text-danger">获取频道失败: ${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                channelContainer.innerHTML = '<p class="text-danger">获取频道列表时出错</p>';
+                console.error('获取频道列表时出错:', error);
+            });
+        });
+        
+        // 保存选择的频道
+        document.getElementById('saveChannelSelection').addEventListener('click', function() {
+            const selectedCheckboxes = document.querySelectorAll('.channel-checkbox:checked');
+            const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+            
+            if (currentInputField) {
+                currentInputField.value = selectedIds.join(',');
+            }
+            
+            channelSelectModal.hide();
         });
     });
-});
 </script>
 {% endblock %}

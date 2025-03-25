@@ -6,6 +6,8 @@ import logging
 import asyncio
 import os
 import sys
+import time
+import json
 import threading
 import signal
 import subprocess
@@ -269,3 +271,66 @@ def check_bot_status(token):
     except Exception as e:
         logger.error(f"检查机器人状态时出错: {str(e)}")
         return ('error', str(e))
+
+def get_guild_channels(token, guild_id):
+    """获取Discord服务器的频道列表
+    
+    Args:
+        token: Discord机器人令牌
+        guild_id: Discord服务器ID
+        
+    Returns:
+        频道列表，每个频道包含id和name
+    """
+    try:
+        headers = {
+            'Authorization': f'Bot {token}',
+            'Content-Type': 'application/json'
+        }
+        
+        url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            channels = response.json()
+            # 只保留文本频道
+            text_channels = [
+                {'id': channel['id'], 'name': channel['name']} 
+                for channel in channels 
+                if channel['type'] == 0  # 0 表示文本频道
+            ]
+            return text_channels
+        else:
+            logger.error(f"获取频道列表失败: {response.status_code} {response.text}")
+            return []
+    except Exception as e:
+        logger.error(f"获取频道列表时出错: {str(e)}")
+        return []
+
+def get_bot_guilds(token):
+    """获取机器人所在的Discord服务器列表
+    
+    Args:
+        token: Discord机器人令牌
+        
+    Returns:
+        服务器列表，每个服务器包含id和name
+    """
+    try:
+        headers = {
+            'Authorization': f'Bot {token}',
+            'Content-Type': 'application/json'
+        }
+        
+        url = 'https://discord.com/api/v10/users/@me/guilds'
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            guilds = response.json()
+            return [{'id': guild['id'], 'name': guild['name']} for guild in guilds]
+        else:
+            logger.error(f"获取服务器列表失败: {response.status_code} {response.text}")
+            return []
+    except Exception as e:
+        logger.error(f"获取服务器列表时出错: {str(e)}")
+        return []
