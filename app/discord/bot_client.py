@@ -280,7 +280,7 @@ def get_guild_channels(token, guild_id):
         guild_id: Discord服务器ID
         
     Returns:
-        频道列表，每个频道包含id和name
+        频道列表，每个频道包含id、name、type、parent_id和parent_name
     """
     try:
         headers = {
@@ -290,18 +290,39 @@ def get_guild_channels(token, guild_id):
         
         url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
         logger.info(f"正在调用Discord API: {url}")
-        response = requests.get(url, headers=headers)
+        
+        # 添加异常检测
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"请求Discord API时网络错误: {str(e)}")
+            return []
         
         logger.info(f"Discord API响应: 状态码={response.status_code}")
         
         if response.status_code == 200:
             channels = response.json()
-            # 只保留文本频道
-            text_channels = [
-                {'id': channel['id'], 'name': channel['name']} 
-                for channel in channels 
-                if channel['type'] == 0  # 0 表示文本频道
-            ]
+            
+            # 构建频道分类映射
+            categories = {}
+            for channel in channels:
+                if channel['type'] == 4:  # 4 表示分类
+                    categories[channel['id']] = channel['name']
+            
+            # 只保留文本频道，并添加分类信息
+            text_channels = []
+            for channel in channels:
+                if channel['type'] == 0:  # 0 表示文本频道
+                    parent_id = channel.get('parent_id')
+                    channel_info = {
+                        'id': channel['id'], 
+                        'name': channel['name'],
+                        'type': channel['type'],
+                        'parent_id': parent_id,
+                        'parent_name': categories.get(parent_id, '未分类')
+                    }
+                    text_channels.append(channel_info)
+            
             logger.info(f"获取到 {len(text_channels)} 个文本频道")
             return text_channels
         else:
@@ -310,6 +331,8 @@ def get_guild_channels(token, guild_id):
             return []
     except Exception as e:
         logger.error(f"获取频道列表时出错: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return []
 
 def get_bot_guilds(token):
