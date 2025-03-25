@@ -289,7 +289,10 @@ def get_guild_channels(token, guild_id):
         }
         
         url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
+        logger.info(f"正在调用Discord API: {url}")
         response = requests.get(url, headers=headers)
+        
+        logger.info(f"Discord API响应: 状态码={response.status_code}")
         
         if response.status_code == 200:
             channels = response.json()
@@ -299,9 +302,11 @@ def get_guild_channels(token, guild_id):
                 for channel in channels 
                 if channel['type'] == 0  # 0 表示文本频道
             ]
+            logger.info(f"获取到 {len(text_channels)} 个文本频道")
             return text_channels
         else:
-            logger.error(f"获取频道列表失败: {response.status_code} {response.text}")
+            error_text = response.text[:200]  # 只记录前200个字符避免日志过长
+            logger.error(f"获取频道列表失败: {response.status_code} {error_text}")
             return []
     except Exception as e:
         logger.error(f"获取频道列表时出错: {str(e)}")
@@ -323,13 +328,18 @@ def get_bot_guilds(token):
         }
         
         url = 'https://discord.com/api/v10/users/@me/guilds'
+        logger.info(f"正在调用Discord API: {url}")
         response = requests.get(url, headers=headers)
+        
+        logger.info(f"Discord API响应: 状态码={response.status_code}")
         
         if response.status_code == 200:
             guilds = response.json()
+            logger.info(f"获取到 {len(guilds)} 个服务器")
             return [{'id': guild['id'], 'name': guild['name']} for guild in guilds]
         else:
-            logger.error(f"获取服务器列表失败: {response.status_code} {response.text}")
+            error_text = response.text[:200]  # 只记录前200个字符避免日志过长
+            logger.error(f"获取服务器列表失败: {response.status_code} {error_text}")
             return []
     except Exception as e:
         logger.error(f"获取服务器列表时出错: {str(e)}")

@@ -376,7 +376,10 @@
 
 {% block scripts %}
 <script>
+    console.log('Discord bot页面脚本加载...');
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM完全加载');
+        
         // 切换密码可见性
         document.querySelectorAll('.toggle-password').forEach(button => {
             button.addEventListener('click', function() {
@@ -398,11 +401,23 @@
         
         // 显示频道选择器
         document.querySelectorAll('.select-channels-btn').forEach(button => {
+            console.log('给频道选择按钮添加事件监听器');
             button.addEventListener('click', function(e) {
+                console.log('频道选择按钮被点击');
                 e.preventDefault();
                 currentInputField = this.closest('.input-group').querySelector('input[name="channel_ids"]');
-                const tokenField = this.closest('form').querySelector('input[name="bot_token"]');
-                const token = tokenField.value;
+                
+                // 确保正确获取token，检查多种可能的位置
+                let tokenField = this.closest('form').querySelector('input[name="bot_token"]');
+                if (!tokenField || !tokenField.value) {
+                    // 尝试从其他表单元素获取
+                    tokenField = document.querySelector('form input[name="bot_token"]');
+                }
+                
+                let token = tokenField ? tokenField.value : '';
+                
+                console.log('获取到token字段:', tokenField ? '是' : '否');
+                console.log('token长度:', token.length);
                 
                 if (!token) {
                     alert('请先输入机器人令牌以获取频道列表');
@@ -433,6 +448,9 @@
             const guildSelect = document.getElementById('guildSelect');
             guildSelect.innerHTML = '<option value="">加载中...</option>';
             
+            console.log('获取Discord服务器列表，令牌前5位:', token.substring(0, 5));
+            
+            // 使用后端代理访问Discord API
             fetch('/dyno/api/discord/guilds', {
                 method: 'POST',
                 headers: {
@@ -440,10 +458,19 @@
                 },
                 body: `token=${encodeURIComponent(token)}`
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('服务器响应状态:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('获取服务器列表结果:', data);
                 if (data.success) {
                     guildSelect.innerHTML = '<option value="">请选择服务器</option>';
+                    if (data.guilds.length === 0) {
+                        guildSelect.innerHTML = '<option value="">未找到服务器</option>';
+                        return;
+                    }
+                    
                     data.guilds.forEach(guild => {
                         const option = document.createElement('option');
                         option.value = guild.id;
@@ -451,8 +478,8 @@
                         guildSelect.appendChild(option);
                     });
                 } else {
-                    guildSelect.innerHTML = '<option value="">获取服务器失败</option>';
-                    console.error(data.error);
+                    guildSelect.innerHTML = `<option value="">错误: ${data.error || '获取服务器失败'}</option>`;
+                    console.error('API错误:', data.error);
                 }
             })
             .catch(error => {
@@ -473,10 +500,16 @@
             
             channelContainer.innerHTML = '<p class="text-muted">加载中...</p>';
             
-            const tokenField = document.querySelector('form:has(input[name="bot_token"])').querySelector('input[name="bot_token"]');
-            const token = tokenField.value;
+            // 获取token
+            let tokenField = document.querySelector('form input[name="bot_token"]');
+            let token = tokenField ? tokenField.value : '';
             
-            // 获取频道列表
+            if (!token) {
+                channelContainer.innerHTML = '<p class="text-danger">无法获取机器人令牌</p>';
+                return;
+            }
+            
+            // 通过后端获取频道列表
             fetch('/dyno/api/discord/channels', {
                 method: 'POST',
                 headers: {
@@ -484,8 +517,12 @@
                 },
                 body: `token=${encodeURIComponent(token)}&guild_id=${encodeURIComponent(guildId)}`
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('服务器响应状态:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('获取频道列表结果:', data);
                 if (data.success) {
                     channelContainer.innerHTML = '';
                     
@@ -515,7 +552,8 @@
                         channelContainer.appendChild(div);
                     });
                 } else {
-                    channelContainer.innerHTML = `<p class="text-danger">获取频道失败: ${data.error}</p>`;
+                    channelContainer.innerHTML = `<p class="text-danger">错误: ${data.error || '获取频道失败'}</p>`;
+                    console.error('API错误:', data.error);
                 }
             })
             .catch(error => {
