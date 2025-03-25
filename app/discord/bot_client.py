@@ -290,6 +290,7 @@ def get_guild_channels(token, guild_id):
         
         url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
         logger.info(f"正在调用Discord API: {url}")
+        logger.info(f"使用的认证标头: Bot {token[:5]}...")
         
         # 添加异常检测
         try:
@@ -325,6 +326,10 @@ def get_guild_channels(token, guild_id):
             
             logger.info(f"获取到 {len(text_channels)} 个文本频道")
             return text_channels
+        elif response.status_code == 401:
+            logger.error(f"获取频道列表失败: 身份验证错误 (401)，请检查机器人令牌是否有效且有足够权限")
+            logger.error(f"令牌前5位: {token[:5]}...")
+            return []
         else:
             error_text = response.text[:200]  # 只记录前200个字符避免日志过长
             logger.error(f"获取频道列表失败: {response.status_code} {error_text}")

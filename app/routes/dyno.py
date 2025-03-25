@@ -936,22 +936,40 @@ def activate_bot():
 @login_required
 def get_discord_channels():
     """获取Discord服务器的频道列表，用于AJAX请求"""
-    token = request.form.get('token')
-    guild_id = request.form.get('guild_id')
+    token = request.form.get('token', '').strip()
+    guild_id = request.form.get('guild_id', '').strip()
     
     if not token or not guild_id:
         return jsonify({'success': False, 'error': '缺少必要参数'})
+    
+    # 确保令牌不包含"Bot "前缀，因为我们会在API调用中添加
+    if token.startswith('Bot '):
+        token = token[4:]
+        
+    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌前5位: {token[:5]}...")
     
     try:
         from app.discord.bot_client import get_guild_channels
         channels = get_guild_channels(token, guild_id)
         
+        if not channels:
+            current_app.logger.warning(f"未获取到频道，可能是权限问题或服务器没有文本频道")
+            return jsonify({
+                'success': True, 
+                'channels': [],
+                'warning': '未获取到频道，请确保机器人拥有足够的权限并已被邀请到服务器'
+            })
+        
         # 返回频道列表
+        current_app.logger.info(f"成功获取到 {len(channels)} 个频道")
         return jsonify({
             'success': True, 
             'channels': channels
         })
     except Exception as e:
+        current_app.logger.error(f"获取Discord频道时出错: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)})
 
 # Discord服务器API路由
@@ -959,19 +977,32 @@ def get_discord_channels():
 @login_required
 def get_discord_guilds():
     """获取机器人所在的Discord服务器列表，用于AJAX请求"""
-    token = request.form.get('token')
+    token = request.form.get('token', '').strip()
     
     if not token:
         return jsonify({'success': False, 'error': '缺少机器人令牌'})
     
+    # 确保令牌不包含"Bot "前缀，因为我们会在API调用中添加
+    if token.startswith('Bot '):
+        token = token[4:]
+        
+    current_app.logger.info(f"请求Discord服务器列表，令牌前5位: {token[:5]}...")
+    
     try:
         from app.discord.bot_client import get_bot_guilds
+        print(f"正在尝试获取Discord服务器列表，令牌: {token[:5]}...")
         guilds = get_bot_guilds(token)
+        print(f"获取到 {len(guilds)} 个服务器")
         
         # 返回服务器列表
+        current_app.logger.info(f"成功获取到 {len(guilds)} 个服务器")
         return jsonify({
             'success': True, 
             'guilds': guilds
         })
     except Exception as e:
+        print(f"获取Discord服务器列表时出错: {str(e)}")
+        current_app.logger.error(f"获取Discord服务器列表时出错: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)})
