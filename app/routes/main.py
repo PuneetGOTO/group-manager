@@ -58,11 +58,15 @@ def about():
 @main_bp.route('/set_admin/<email>')
 def set_admin(email):
     """临时路由：将指定邮箱的用户设置为管理员"""
-    # 安全检查 - 仅允许特定邮箱
-    if email != 'AN920513@gmail.com':
+    # 安全检查 - 仅允许特定邮箱 (大小写不敏感)
+    target_email = 'an920513@gmail.com'
+    if email.lower() != target_email.lower():
         return "未授权的操作", 403
     
-    user = User.query.filter_by(email=email).first()
+    # 使用大小写不敏感的查询方式
+    from sqlalchemy import func
+    user = User.query.filter(func.lower(User.email) == func.lower(email)).first()
+    
     if not user:
         return f"未找到邮箱为 {email} 的用户", 404
     
