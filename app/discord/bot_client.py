@@ -109,11 +109,12 @@ def run_bot(token):
     
     return True
 
-def start_bot_process(token):
+def start_bot_process(token, channel_ids=None):
     """启动Discord机器人进程
     
     Args:
         token: Discord机器人令牌
+        channel_ids: 频道ID列表，逗号分隔的字符串
         
     Returns:
         进程ID或None（如果启动失败）
@@ -134,6 +135,11 @@ def start_bot_process(token):
         # 准备环境变量
         env = os.environ.copy()
         env['DISCORD_BOT_TOKEN'] = token
+        
+        # 如果提供了频道ID，也设置到环境变量
+        if channel_ids:
+            env['DISCORD_BOT_CHANNEL_IDS'] = channel_ids
+            logger.info(f"设置机器人频道: {channel_ids}")
         
         # 启动进程
         logger.info(f"正在启动Discord机器人进程...")

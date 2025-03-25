@@ -830,6 +830,7 @@ def activate_bot():
     bot_id = request.form.get('bot_id')
     bot_token = request.form.get('bot_token')
     group_id = request.form.get('group_id')
+    channel_ids = request.form.get('channel_ids')
     
     # 如果提供了bot_id，则是激活现有机器人
     if bot_id:
@@ -846,6 +847,11 @@ def activate_bot():
             # 在数据库中更新机器人状态
             bot.activate()
             
+            # 如果提供了新的频道ID，则更新
+            if channel_ids is not None:
+                bot.channel_ids = channel_ids
+                db.session.commit()
+            
             # 启动实际的Discord机器人进程
             from app.discord.bot_client import start_bot_process, check_bot_status
             
@@ -856,7 +862,7 @@ def activate_bot():
                 return redirect(url_for('dyno.bot_dashboard'))
             
             # 启动机器人进程
-            process_id = start_bot_process(bot.bot_token)
+            process_id = start_bot_process(bot.bot_token, bot.channel_ids)
             
             if process_id:
                 flash('机器人已成功激活，进程ID: {}'.format(process_id), 'success')
@@ -903,6 +909,7 @@ def activate_bot():
             bot = DiscordBot(
                 bot_token=bot_token,
                 group_id=int(group_id) if group_id else None,
+                channel_ids=channel_ids,
                 is_active=True,
                 status='pending',
                 last_activated=datetime.utcnow()
@@ -911,7 +918,7 @@ def activate_bot():
             db.session.commit()
             
             # 启动机器人进程
-            process_id = start_bot_process(bot_token)
+            process_id = start_bot_process(bot_token, channel_ids)
             
             if process_id:
                 bot.update_status('online')

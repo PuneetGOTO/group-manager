@@ -236,6 +236,9 @@ class DiscordBot(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=True)
     group = db.relationship('Group', backref=db.backref('discord_bot', lazy=True))
     
+    # 机器人频道设置
+    channel_ids = db.Column(db.Text, nullable=True)  # 逗号分隔的频道ID
+    
     # 机器人权限设置
     permissions = db.Column(db.String(20), default='8')  # 8表示管理员权限
     

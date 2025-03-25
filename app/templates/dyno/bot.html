@@ -99,6 +99,14 @@
                             <div class="form-text">如不需要更改令牌，请留空</div>
                         </div>
                         
+                        <div class="mb-3">
+                            <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
+                            <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                            <div class="form-text">
+                                <small>例如：123456789,987654321</small>
+                            </div>
+                        </div>
+                        
                         <div class="bot-actions">
                             <button type="submit" class="btn btn-success">
                                 <i class="fas fa-play me-1"></i> 激活机器人
@@ -134,6 +142,13 @@
                                 </button>
                             </div>
                             <div class="form-text">访问<a href="https://discord.com/developers/applications" target="_blank">Discord开发者门户</a>创建机器人并获取令牌</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
+                            <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                            <div class="form-text">
+                                <small>例如：123456789,987654321</small>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-plus me-1"></i> 创建并激活机器人
@@ -198,7 +213,13 @@
                                     </div>
                                     <div class="form-text">如不需要更改令牌，请留空</div>
                                 </div>
-                                
+                                <div class="mb-3">
+                                    <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
+                                    <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                    <div class="form-text">
+                                        <small>例如：123456789,987654321</small>
+                                    </div>
+                                </div>
                                 <div class="d-flex gap-2">
                                     <button type="submit" class="btn btn-success btn-sm">
                                         <i class="fas fa-play me-1"></i> 激活
@@ -248,6 +269,13 @@
                                     <button type="button" class="btn btn-outline-secondary toggle-password">
                                         <i class="fas fa-eye"></i>
                                     </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">频道设置 <small class="text-muted">(可选，留空表示所有频道)</small></label>
+                                <input type="text" class="form-control" name="channel_ids" placeholder="输入频道ID，多个ID用逗号分隔">
+                                <div class="form-text">
+                                    <small>例如：123456789,987654321</small>
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary">

@@ -28,11 +28,21 @@ logger = logging.getLogger('discord_bot')
 class SimpleBot(discord.Client):
     """简单的Discord机器人客户端，用于验证连接和基本功能"""
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, channel_ids=None, *args, **kwargs):
         intents = discord.Intents.default()
         intents.message_content = True  # 需要在开发者门户中启用此特权意图
         super().__init__(intents=intents, *args, **kwargs)
         self.start_time = datetime.utcnow()
+        
+        # 处理频道ID列表（如果提供）
+        self.channel_ids = []
+        if channel_ids:
+            # 将逗号分隔的字符串转换为整数ID列表
+            try:
+                self.channel_ids = [int(cid.strip()) for cid in channel_ids.split(',') if cid.strip()]
+                logger.info(f'机器人将在这些频道中响应: {self.channel_ids}')
+            except ValueError:
+                logger.warning(f'无效的频道ID格式: {channel_ids}，将在所有频道中响应')
         
     async def on_ready(self):
         """当机器人成功连接到Discord时触发"""
@@ -52,6 +62,10 @@ class SimpleBot(discord.Client):
         if message.author == self.user:
             return
             
+        # 仅在指定频道中响应（如果提供）
+        if self.channel_ids and message.channel.id not in self.channel_ids:
+            return
+        
         # 简单的回复功能，仅用于测试
         if message.content.startswith('!ping'):
             await message.channel.send('Pong!')
@@ -74,13 +88,14 @@ def main():
     
     # 从环境变量获取令牌
     token = os.environ.get('DISCORD_BOT_TOKEN')
+    channel_ids = os.environ.get('DISCORD_BOT_CHANNEL_IDS')
     
     if not token:
         logger.error('未设置DISCORD_BOT_TOKEN环境变量')
         sys.exit(1)
     
     # 创建并启动机器人
-    bot = SimpleBot()
+    bot = SimpleBot(channel_ids)
     
     try:
         logger.info('正在尝试连接到Discord...')
