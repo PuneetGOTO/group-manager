@@ -59,5 +59,26 @@ class Group(db.Model):
         
         return admin_members
     
+    def is_admin(self, user):
+        """检查用户是否是该群组的管理员
+        
+        Args:
+            user: 用户对象
+            
+        Returns:
+            bool: 是否是管理员
+        """
+        # 首先检查是否是群组拥有者
+        if user.id == self.owner_id:
+            return True
+            
+        # 然后检查是否是群组管理员
+        admin_query = db.session.execute(
+            db.text("SELECT 1 FROM group_members WHERE group_id = :group_id AND user_id = :user_id AND role = 'admin'"),
+            {"group_id": self.id, "user_id": user.id}
+        ).fetchone()
+        
+        return admin_query is not None
+    
     def __repr__(self):
         return f'<Group {self.name}>'
