@@ -758,39 +758,60 @@ def activate_bot():
             bot = DiscordBot.query.get_or_404(int(bot_id))
             if bot_token:
                 bot.bot_token = bot_token
-            bot.activate()
             
-            # 设置环境变量
-            os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
-            # 更新DiscordClient的静态变量
-            from app.discord.client import DiscordClient
-            DiscordClient.DISCORD_BOT_TOKEN = bot.bot_token
+            # 尝试启动实际的Discord机器人进程
+            from app.discord.bot_client import start_bot_process
+            try:
+                process_id = start_bot_process(bot.bot_token)
+                if process_id:
+                    # 只有当进程成功启动后才更新状态
+                    bot.activate()
+                    bot.error_message = None  # 清除之前的错误消息
+                    
+                    # 设置环境变量
+                    os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
+                    
+                    flash('成功激活Discord机器人，机器人已开始运行', 'success')
+                else:
+                    bot.update_status('error', '无法启动Discord机器人进程')
+                    flash('机器人令牌可能有误或连接Discord API时出现问题', 'danger')
+            except Exception as e:
+                bot.update_status('error', f'启动失败: {str(e)}')
+                flash(f'启动Discord机器人失败: {str(e)}', 'danger')
             
-            flash('成功激活Discord机器人', 'success')
         else:
             # 创建新机器人
             if not bot_token:
                 flash('请提供机器人令牌', 'warning')
                 return redirect(url_for('dyno.bot_dashboard'))
             
-            # 创建机器人记录
-            bot = DiscordBot(
-                bot_token=bot_token,
-                group_id=int(group_id) if group_id and group_id != 'global' else None,
-                is_active=True,
-                status='online',
-                last_activated=datetime.utcnow()
-            )
-            db.session.add(bot)
-            db.session.commit()
-            
-            # 设置环境变量
-            os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
-            # 更新DiscordClient的静态变量
-            from app.discord.client import DiscordClient
-            DiscordClient.DISCORD_BOT_TOKEN = bot.bot_token
-            
-            flash('成功创建并激活Discord机器人', 'success')
+            # 先尝试启动机器人进程
+            from app.discord.bot_client import start_bot_process
+            try:
+                process_id = start_bot_process(bot_token)
+                if process_id:
+                    # 只有当进程成功启动后才创建数据库记录
+                    # 创建机器人记录
+                    bot = DiscordBot(
+                        bot_token=bot_token,
+                        group_id=int(group_id) if group_id and group_id != 'global' else None,
+                        is_active=True,
+                        status='online',
+                        last_activated=datetime.utcnow()
+                    )
+                    db.session.add(bot)
+                    db.session.commit()
+                    
+                    # 设置环境变量
+                    os.environ['DISCORD_BOT_TOKEN'] = bot.bot_token
+                    
+                    flash('成功创建并激活Discord机器人，机器人已开始运行', 'success')
+                else:
+                    flash('无法启动Discord机器人进程，请检查令牌是否有效', 'danger')
+                    return redirect(url_for('dyno.bot_dashboard'))
+            except Exception as e:
+                flash(f'创建并启动Discord机器人失败: {str(e)}', 'danger')
+                return redirect(url_for('dyno.bot_dashboard'))
             
     except Exception as e:
         db.session.rollback()
@@ -816,14 +837,12 @@ def deactivate_bot(bot_id):
         return redirect(url_for('dyno.bot_dashboard'))
     
     try:
-        bot.deactivate()
+        # 停止实际运行的机器人进程
+        from app.discord.bot_client import stop_bot_process
+        stop_bot_process()
         
-        # 如果这是当前激活的机器人，清除环境变量
-        if os.environ.get('DISCORD_BOT_TOKEN') == bot.bot_token:
-            os.environ['DISCORD_BOT_TOKEN'] = ''
-            # 更新DiscordClient的静态变量
-            from app.discord.client import DiscordClient
-            DiscordClient.DISCORD_BOT_TOKEN = ''
+        # 更新数据库状态
+        bot.deactivate()
         
         flash('成功停用Discord机器人', 'success')
     except Exception as e:
@@ -832,61 +851,33 @@ def deactivate_bot(bot_id):
     
     return redirect(url_for('dyno.bot_dashboard'))
 
-@dyno_bp.route('/bot/check-status/<int:bot_id>')
+@dyno_bp.route('/bot/check-status/<int:bot_id>', methods=['POST'])
 @login_required
 def check_bot_status(bot_id):
     """检查Discord机器人状态"""
     bot = DiscordBot.query.get_or_404(bot_id)
     
-    # 验证是否有权限查看此机器人
+    # 验证是否有权限管理此机器人
     if bot.group_id:
         group = Group.query.get_or_404(bot.group_id)
         if current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
-            return jsonify({'status': 'error', 'message': '无权限'})
+            return jsonify({'success': False, 'message': '您没有权限管理此群组的机器人'})
     elif not current_user.is_admin:
-        return jsonify({'status': 'error', 'message': '无权限'})
+        return jsonify({'success': False, 'message': '只有管理员可以管理全局机器人'})
     
     try:
-        # 使用机器人令牌测试API连接
-        from app.discord.client import DiscordClient
-        old_token = DiscordClient.DISCORD_BOT_TOKEN
-        DiscordClient.DISCORD_BOT_TOKEN = bot.bot_token
+        # 使用新的状态检查函数
+        from app.discord.bot_client import check_bot_status
+        status, error_message = check_bot_status(bot.bot_token)
         
-        # 测试获取当前用户信息
-        headers = {
-            'Authorization': f'Bot {bot.bot_token}',
-            'Content-Type': 'application/json'
-        }
-        url = 'https://discord.com/api/v10/users/@me'
+        # 更新数据库中的机器人状态
+        bot.update_status(status, error_message)
         
-        response = requests.get(url, headers=headers)
-        
-        # 恢复原始令牌
-        DiscordClient.DISCORD_BOT_TOKEN = old_token
-        
-        if response.status_code == 200:
-            bot_info = response.json()
-            bot.update_status('online')
-            return jsonify({
-                'status': 'online',
-                'bot_name': bot_info.get('username'),
-                'bot_id': bot_info.get('id'),
-                'last_check': bot.last_status_check.strftime('%Y-%m-%d %H:%M:%S') if bot.last_status_check else None
-            })
-        else:
-            error_message = f"API错误: {response.status_code} - {response.text}"
-            bot.update_status('error', error_message)
-            return jsonify({
-                'status': 'error',
-                'message': error_message,
-                'last_check': bot.last_status_check.strftime('%Y-%m-%d %H:%M:%S') if bot.last_status_check else None
-            })
-            
-    except Exception as e:
-        error_message = str(e)
-        bot.update_status('error', error_message)
         return jsonify({
-            'status': 'error',
-            'message': error_message,
-            'last_check': bot.last_status_check.strftime('%Y-%m-%d %H:%M:%S') if bot.last_status_check else None
+            'success': True, 
+            'status': status,
+            'error_message': error_message
         })
+    except Exception as e:
+        current_app.logger.error(f"检查Discord机器人状态失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'检查机器人状态失败: {str(e)}'})

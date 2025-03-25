@@ -323,7 +323,7 @@ $(document).ready(function() {
         
         $.ajax({
             url: '/dyno/bot/check-status/' + botId,
-            method: 'GET',
+            method: 'POST',
             success: function(response) {
                 // 更新状态指示器
                 const statusContainer = button.closest('div').find('.bot-status');
@@ -332,16 +332,24 @@ $(document).ready(function() {
                 // 更新机器人信息容器
                 const infoContainer = $('.bot-info-container[data-bot-id="' + botId + '"]');
                 
-                if (response.status === 'online') {
+                if (response.success && response.status === 'online') {
                     statusContainer.addClass('status-online');
                     button.closest('div').find('span:not(.bot-status)').text('在线').removeClass('text-danger text-secondary').addClass('text-success');
                     
                     // 显示机器人信息
                     infoContainer.html(`
                         <div class="alert alert-success">
-                            <strong>机器人信息:</strong> 
-                            ${response.bot_name} (ID: ${response.bot_id})
-                            <div class="small text-muted mt-1">最后检查: ${response.last_check || '未知'}</div>
+                            <strong>机器人信息:</strong> 机器人成功连接到Discord并已激活
+                        </div>
+                    `);
+                } else if (response.success && response.status === 'offline') {
+                    statusContainer.addClass('status-offline');
+                    button.closest('div').find('span:not(.bot-status)').text('离线').removeClass('text-success text-danger').addClass('text-secondary');
+                    
+                    // 显示离线信息
+                    infoContainer.html(`
+                        <div class="alert alert-warning">
+                            <strong>离线状态:</strong> ${response.error_message || '机器人当前未运行'}
                         </div>
                     `);
                 } else {
@@ -351,8 +359,7 @@ $(document).ready(function() {
                     // 显示错误信息
                     infoContainer.html(`
                         <div class="alert alert-danger">
-                            <strong>错误信息:</strong> ${response.message}
-                            <div class="small text-muted mt-1">最后检查: ${response.last_check || '未知'}</div>
+                            <strong>错误信息:</strong> ${response.error_message || response.message || '未知错误'}
                         </div>
                     `);
                 }
@@ -374,14 +381,25 @@ $(document).ready(function() {
         
         $.ajax({
             url: '/dyno/bot/check-status/' + botId,
-            method: 'GET',
+            method: 'POST',
             success: function(response) {
-                if (response.status === 'online') {
+                if (response.success && response.status === 'online') {
                     container.html(`
                         <div class="alert alert-success">
-                            <strong>机器人信息:</strong> 
-                            ${response.bot_name} (ID: ${response.bot_id})
-                            <div class="small text-muted mt-1">最后检查: ${response.last_check || '未知'}</div>
+                            <strong>机器人信息:</strong> 机器人成功连接到Discord并已激活
+                        </div>
+                    `);
+                } else if (response.success && response.status === 'offline') {
+                    container.html(`
+                        <div class="alert alert-warning">
+                            <strong>离线状态:</strong> ${response.error_message || '机器人当前未运行'}
+                        </div>
+                    `);
+                } else if (!container.html().trim()) {
+                    // 如果容器为空，显示错误信息
+                    container.html(`
+                        <div class="alert alert-danger">
+                            <strong>错误信息:</strong> ${response.error_message || response.message || '未知错误'}
                         </div>
                     `);
                 }
