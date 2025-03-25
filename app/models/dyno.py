@@ -265,6 +265,27 @@ class DiscordBot(db.Model):
     def update_status(self, status, error_message=None):
         """更新机器人状态"""
         self.status = status
-        self.error_message = error_message
         self.last_status_check = datetime.utcnow()
+        if error_message:
+            self.error_message = error_message
         db.session.commit()
+            
+    def can_manage(self, user):
+        """检查用户是否可以管理此机器人
+        
+        Args:
+            user: 用户模型对象
+            
+        Returns:
+            bool: 是否可以管理
+        """
+        # 如果用户是管理员，允许管理所有机器人
+        if user.is_admin:
+            return True
+            
+        # 如果机器人关联了群组，检查用户是否是群组管理员
+        if self.group_id:
+            return self.group.is_admin(user)
+            
+        # 默认情况下，只有管理员可以管理机器人
+        return False

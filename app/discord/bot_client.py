@@ -14,6 +14,7 @@ import subprocess
 from discord.ext import commands
 from datetime import datetime
 from dotenv import load_dotenv
+import requests
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -244,7 +245,6 @@ def check_bot_status(token):
         }
         
         # 尝试获取机器人自身信息，这将验证令牌是否有效
-        import requests
         response = requests.get(
             'https://discord.com/api/v10/users/@me',
             headers=headers
@@ -329,7 +329,14 @@ def get_bot_guilds(token):
         
         url = 'https://discord.com/api/v10/users/@me/guilds'
         logger.info(f"正在调用Discord API: {url}")
-        response = requests.get(url, headers=headers)
+        logger.info(f"使用的认证标头: Bot {token[:5]}...")
+        
+        # 添加异常检测
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"请求Discord API时网络错误: {str(e)}")
+            return []
         
         logger.info(f"Discord API响应: 状态码={response.status_code}")
         
@@ -343,4 +350,6 @@ def get_bot_guilds(token):
             return []
     except Exception as e:
         logger.error(f"获取服务器列表时出错: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return []
