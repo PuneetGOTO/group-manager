@@ -1,5 +1,5 @@
 """Dyno功能路由"""
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, jsonify, request, current_app, g, abort
 from flask_login import login_required, current_user
 from app import db
 from app.models import (
@@ -12,6 +12,9 @@ import json
 from datetime import datetime
 import requests
 import os
+
+# 导入Discord相关的函数
+from app.discord.bot_client import get_bot_info, start_bot_process, get_bot_status, get_guild_channels, get_bot_guilds
 
 dyno_bp = Blueprint('dyno', __name__)
 
@@ -1001,28 +1004,34 @@ def get_discord_channels():
     current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌前5位: {token[:5]}...")
     
     try:
-        from app.discord.bot_client import get_guild_channels
+        # 从Discord API获取频道列表
         channels = get_guild_channels(token, guild_id)
         
-        if not channels:
-            current_app.logger.warning(f"未获取到频道，可能是权限问题或服务器没有文本频道")
-            return jsonify({
-                'success': True, 
-                'channels': [],
-                'warning': '未获取到频道，请确保机器人拥有足够的权限并已被邀请到服务器'
-            })
+        current_app.logger.info(f"获取到 {len(channels)} 个频道")
         
-        # 返回频道列表
-        current_app.logger.info(f"成功获取到 {len(channels)} 个频道")
+        # 打印获取到的频道数据以进行调试
+        if channels:
+            channel_info = [(c['id'], c['name'], c['type']) for c in channels[:5]]
+            current_app.logger.debug(f"部分频道数据: {channel_info}")
+        else:
+            current_app.logger.warning(f"没有获取到任何频道，可能是权限问题或服务器没有频道")
+            
         return jsonify({
-            'success': True, 
+            'success': True,
             'channels': channels
         })
     except Exception as e:
-        current_app.logger.error(f"获取Discord频道时出错: {str(e)}")
+        error_message = str(e)
+        current_app.logger.error(f"获取Discord频道时出错: {error_message}")
         import traceback
         current_app.logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'error': str(e)})
+        
+        # 返回更详细的错误信息
+        return jsonify({
+            'success': False,
+            'error': f"获取频道失败: {error_message}",
+            'error_details': traceback.format_exc()
+        })
 
 # Discord服务器API路由
 @dyno_bp.route('/api/discord/guilds', methods=['POST'])

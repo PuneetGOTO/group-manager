@@ -341,11 +341,16 @@ def get_guild_channels(token, guild_id):
             channels = response.json()
             logger.info(f"成功获取频道数据: {len(channels)}个频道")
             
+            # 完整记录频道数据用于调试
+            for channel in channels:
+                logger.debug(f"频道数据: id={channel.get('id', 'N/A')}, name={channel.get('name', 'N/A')}, type={channel.get('type', 'N/A')}")
+            
             # 构建频道分类映射
             categories = {}
             for channel in channels:
                 if channel['type'] == 4:  # 4 表示分类
                     categories[channel['id']] = channel['name']
+                    logger.debug(f"找到分类: {channel['name']} (ID: {channel['id']})")
             
             # 只保留文本频道，并添加分类信息
             text_channels = []
@@ -361,6 +366,7 @@ def get_guild_channels(token, guild_id):
                         'parent_name': categories.get(parent_id, '未分类')
                     }
                     text_channels.append(channel_info)
+                    logger.debug(f"添加有效频道: {channel['name']} (ID: {channel['id']}, 类型: {channel['type']})")
             
             logger.info(f"过滤后获取到 {len(text_channels)} 个可用频道")
             return text_channels

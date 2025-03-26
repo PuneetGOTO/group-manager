@@ -616,8 +616,8 @@
         });
         
         function searchChannels() {
-            const searchText = document.getElementById('channelSearch').value.toLowerCase();
-            console.log('搜索频道:', searchText);
+            const searchTerm = document.getElementById('channelSearch').value.toLowerCase();
+            console.log('搜索频道:', searchTerm);
             
             const allChannels = document.querySelectorAll('#channelCheckboxes .form-check');
             if (allChannels.length === 0) {
@@ -636,7 +636,7 @@
                 
                 const channelName = label.textContent.toLowerCase();
                 
-                if (searchText === '' || channelName.includes(searchText)) {
+                if (searchTerm === '' || channelName.includes(searchTerm)) {
                     channelItem.style.display = '';
                     visibleCount++;
                 } else {
@@ -843,6 +843,25 @@
                     option.textContent = guild.name;
                     guildSelect.appendChild(option);
                 });
+                
+                // 默认选择第一个服务器并加载其频道
+                if (data.guilds.length > 0) {
+                    const firstGuildId = data.guilds[0].id;
+                    guildSelect.value = firstGuildId;
+                    console.log('自动选择服务器:', data.guilds[0].name, '(ID:', firstGuildId, ')');
+                    fetchDiscordChannels(firstGuildId, token);
+                }
+                
+                // 添加服务器选择变更事件
+                guildSelect.addEventListener('change', function() {
+                    const selectedGuildId = this.value;
+                    if (selectedGuildId) {
+                        console.log('选择服务器, ID:', selectedGuildId);
+                        fetchDiscordChannels(selectedGuildId, token);
+                    } else {
+                        document.getElementById('channelCheckboxes').innerHTML = '<p class="text-muted">请先选择一个服务器</p>';
+                    }
+                });
             } else {
                 let errorMsg = data.error || '获取服务器失败';
                 guildSelect.innerHTML = `<option value="">错误: ${errorMsg}</option>`;
@@ -912,13 +931,21 @@
                 channelContainer.innerHTML = '';
                 
                 if (!data.channels || data.channels.length === 0) {
-                    channelContainer.innerHTML = '<p class="text-muted">没有可用的文本频道</p>';
+                    channelContainer.innerHTML = `
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> 没有可用的文本频道或机器人没有权限查看频道
+                        </div>
+                        <div class="mt-2">
+                            <p>请确保机器人有以下权限:</p>
+                            <ul>
+                                <li>查看频道 (View Channels)</li>
+                                <li>服务器成员意图 (Server Members Intent)</li>
+                            </ul>
+                        </div>
+                    `;
                     document.querySelector('.channel-actions').style.display = 'none';
                     return;
                 }
-                
-                // 显示操作按钮
-                document.querySelector('.channel-actions').style.display = 'flex';
                 
                 // 创建频道分类结构
                 const channelsByCategory = {};
