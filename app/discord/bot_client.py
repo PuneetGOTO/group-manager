@@ -238,13 +238,19 @@ def check_bot_status(token):
     状态可以是：'online', 'offline', 'error'
     """
     try:
-        # 使用Discord API检查令牌是否有效
+        # 移除可能的前缀并确保正确的授权格式
+        if token.startswith('Bot '):
+            token = token[4:]
+        
+        # 确保令牌不包含引号或额外的空格
+        token = token.strip(' "\'')
+            
         headers = {
             'Authorization': f'Bot {token}',
             'Content-Type': 'application/json'
         }
         
-        # 尝试获取机器人自身信息，这将验证令牌是否有效
+        # 使用Discord API检查令牌是否有效
         response = requests.get(
             'https://discord.com/api/v10/users/@me',
             headers=headers
@@ -283,26 +289,40 @@ def get_guild_channels(token, guild_id):
         频道列表，每个频道包含id、name、type、parent_id和parent_name
     """
     try:
+        # 移除可能的前缀并确保正确的授权格式
+        if token.startswith('Bot '):
+            token = token[4:]
+        
+        # 确保令牌不包含引号或额外的空格
+        token = token.strip(' "\'')
+            
         headers = {
             'Authorization': f'Bot {token}',
             'Content-Type': 'application/json'
         }
         
+        # 记录完整的请求信息便于调试
         url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
-        logger.info(f"正在调用Discord API: {url}")
-        logger.info(f"使用的认证标头: Bot {token[:5]}...")
+        logger.info(f"正在调用Discord API获取频道: {url}")
+        logger.info(f"Headers: Authorization: Bot {token[:5]}***")
         
         # 添加异常检测
         try:
             response = requests.get(url, headers=headers, timeout=10)
+            logger.info(f"API响应状态码: {response.status_code}")
+            
+            # 记录更多响应信息用于调试
+            if response.status_code != 200:
+                error_info = response.text[:200] if response.text else "无响应内容"
+                logger.error(f"API错误响应: {error_info}")
+                
         except requests.exceptions.RequestException as e:
             logger.error(f"请求Discord API时网络错误: {str(e)}")
             return []
         
-        logger.info(f"Discord API响应: 状态码={response.status_code}")
-        
         if response.status_code == 200:
             channels = response.json()
+            logger.info(f"成功获取频道数据: {len(channels)}个频道")
             
             # 构建频道分类映射
             categories = {}
@@ -325,11 +345,17 @@ def get_guild_channels(token, guild_id):
                     }
                     text_channels.append(channel_info)
             
-            logger.info(f"获取到 {len(text_channels)} 个频道")
+            logger.info(f"过滤后获取到 {len(text_channels)} 个可用频道")
             return text_channels
         elif response.status_code == 401:
-            logger.error(f"获取频道列表失败: 身份验证错误 (401)，请检查机器人令牌是否有效且有足够权限")
-            logger.error(f"令牌前5位: {token[:5]}...")
+            logger.error(f"获取频道列表失败: 身份验证错误 (401)，原因可能是:")
+            logger.error(f"1. 机器人令牌无效")
+            logger.error(f"2. 机器人没有足够的权限/范围")
+            logger.error(f"3. 机器人没有启用必要的Intents (Server Members Intent)")
+            logger.error(f"请检查Discord开发者门户中的设置")
+            return []
+        elif response.status_code == 403:
+            logger.error(f"获取频道列表失败: 权限不足 (403)，机器人需要 'View Channels' 权限")
             return []
         else:
             error_text = response.text[:200]  # 只记录前200个字符避免日志过长
@@ -342,7 +368,8 @@ def get_guild_channels(token, guild_id):
         return []
 
 def get_bot_guilds(token):
-    """获取机器人所在的Discord服务器列表
+    """
+    获取机器人所在的Discord服务器列表
     
     Args:
         token: Discord机器人令牌
@@ -350,35 +377,61 @@ def get_bot_guilds(token):
     Returns:
         服务器列表，每个服务器包含id和name
     """
+    url = "https://discord.com/api/v10/users/@me/guilds"
+    headers = {"Authorization": f"Bot {token}"}
+    
     try:
-        headers = {
-            'Authorization': f'Bot {token}',
-            'Content-Type': 'application/json'
-        }
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        guilds = response.json()
         
-        url = 'https://discord.com/api/v10/users/@me/guilds'
-        logger.info(f"正在调用Discord API: {url}")
-        logger.info(f"使用的认证标头: Bot {token[:5]}...")
-        
-        # 添加异常检测
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-        except requests.exceptions.RequestException as e:
-            logger.error(f"请求Discord API时网络错误: {str(e)}")
-            return []
-        
-        logger.info(f"Discord API响应: 状态码={response.status_code}")
-        
-        if response.status_code == 200:
-            guilds = response.json()
-            logger.info(f"获取到 {len(guilds)} 个服务器")
-            return [{'id': guild['id'], 'name': guild['name']} for guild in guilds]
-        else:
-            error_text = response.text[:200]  # 只记录前200个字符避免日志过长
-            logger.error(f"获取服务器列表失败: {response.status_code} {error_text}")
-            return []
-    except Exception as e:
-        logger.error(f"获取服务器列表时出错: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
+        # 格式化结果为简化列表
+        result = []
+        for guild in guilds:
+            result.append({
+                "id": guild["id"],
+                "name": guild["name"],
+                "icon": guild.get("icon")
+            })
+            
+        return result
+    except requests.exceptions.RequestException as e:
+        logger.error(f"获取机器人服务器列表时出错: {str(e)}")
         return []
+    except ValueError as e:
+        logger.error(f"解析机器人服务器列表时出错: {str(e)}")
+        return []
+
+def get_bot_info(token):
+    """
+    获取Discord机器人的信息
+    
+    Args:
+        token: Discord机器人令牌
+        
+    Returns:
+        包含机器人信息的字典，如果令牌无效则返回None
+    """
+    url = "https://discord.com/api/v10/users/@me"
+    headers = {"Authorization": f"Bot {token}"}
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        bot_data = response.json()
+        
+        # 返回格式化的机器人信息
+        return {
+            "id": bot_data["id"],
+            "username": bot_data["username"],
+            "discriminator": bot_data.get("discriminator", "0"),
+            "avatar": bot_data.get("avatar"),
+            "verified": bot_data.get("verified", False),
+            "flags": bot_data.get("flags", 0)
+        }
+    except requests.exceptions.RequestException as e:
+        logger.error(f"获取机器人信息时出错: {str(e)}")
+        return None
+    except ValueError as e:
+        logger.error(f"解析机器人信息时出错: {str(e)}")
+        return None
