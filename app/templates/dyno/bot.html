@@ -518,6 +518,48 @@
                 
                 updateSelectedChannelsUI();
                 
+                // 显示模态框并填充一个测试频道以验证UI显示
+                const channelContainer = document.getElementById('channelCheckboxes');
+                channelContainer.innerHTML = '<div class="alert alert-info">正在加载频道列表...</div>';
+                
+                // 强制显示频道操作按钮用于测试
+                document.querySelector('.channel-actions').style.display = 'flex';
+                
+                // 手动添加一个测试频道以验证UI是否正常工作
+                channelContainer.innerHTML = '';
+                
+                // 创建测试分类
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'mb-2';
+                
+                const categoryHeader = document.createElement('h6');
+                categoryHeader.textContent = '测试分类';
+                categoryDiv.appendChild(categoryHeader);
+                
+                // 创建测试频道
+                const div = document.createElement('div');
+                div.className = 'form-check ms-3';
+                
+                const input = document.createElement('input');
+                input.className = 'form-check-input channel-checkbox';
+                input.type = 'checkbox';
+                input.id = 'channel-test123';
+                input.value = 'test123';
+                
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = 'channel-test123';
+                label.textContent = '#测试频道';
+                
+                div.appendChild(input);
+                div.appendChild(label);
+                categoryDiv.appendChild(div);
+                
+                channelContainer.appendChild(categoryDiv);
+                
+                console.log('已添加测试频道到UI');
+                updateSelectedChannelsUI();
+                
                 // 获取服务器列表
                 fetchDiscordGuilds(token);
                 
