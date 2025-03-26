@@ -15,6 +15,7 @@ from discord.ext import commands
 from datetime import datetime
 from dotenv import load_dotenv
 import requests
+from flask import current_app
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -303,158 +304,285 @@ def get_guild_channels(token, guild_id):
         guild_id: Discord服务器ID
         
     Returns:
-        频道列表，每个频道包含id、name、type、parent_id和parent_name
+        list: 频道列表，每个频道包含id、name和type
     """
+    import requests
+    import logging
+    from flask import current_app
+    
+    # 确保令牌格式正确
+    if not token.startswith('Bot '):
+        current_app.logger.info(f"添加Bot前缀到令牌...")
+        token = f'Bot {token}'
+    
+    url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
+    headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+    }
+    
+    current_app.logger.info(f"请求Discord频道列表URL: {url}")
+    current_app.logger.info(f"请求头Authorization: {token[:15]}...")
+    
     try:
-        # 移除可能的前缀并确保正确的授权格式
-        if token.startswith('Bot '):
-            token = token[4:]
+        response = requests.get(url, headers=headers)
+        current_app.logger.info(f"API响应状态码: {response.status_code}")
         
-        # 确保令牌不包含引号或额外的空格
-        token = token.strip(' "\'')
+        if response.status_code != 200:
+            current_app.logger.error(f"获取频道列表失败: {response.status_code}")
+            current_app.logger.error(f"响应内容: {response.text}")
+            return []
             
-        headers = {
-            'Authorization': f'Bot {token}',
-            'Content-Type': 'application/json'
-        }
+        channels = response.json()
+        current_app.logger.info(f"成功获取到 {len(channels)} 个频道")
         
-        # 记录完整的请求信息便于调试
-        url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
-        logger.info(f"正在调用Discord API获取频道: {url}")
-        logger.info(f"Headers: Authorization: Bot {token[:5]}***")
+        # 获取父频道（分类）映射
+        parent_map = {}
+        for channel in channels:
+            if channel.get('type') == 4:  # 4 = 分类频道
+                parent_map[channel.get('id')] = channel.get('name')
         
-        # 添加异常检测
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            logger.info(f"API响应状态码: {response.status_code}")
-            
-            # 记录更多响应信息用于调试
-            if response.status_code != 200:
-                error_info = response.text[:200] if response.text else "无响应内容"
-                logger.error(f"API错误响应: {error_info}")
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"请求Discord API时网络错误: {str(e)}")
-            return []
+        # 格式化返回结果，仅返回文本频道和语音频道
+        formatted_channels = []
+        for channel in channels:
+            channel_type = channel.get('type')
+            # 仅包含文本(0)和语音(2)频道
+            if channel_type in [0, 2]:
+                parent_id = channel.get('parent_id')
+                formatted_channels.append({
+                    'id': channel.get('id'),
+                    'name': channel.get('name'),
+                    'type': channel_type,
+                    'parent_id': parent_id,
+                    'parent_name': parent_map.get(parent_id, '未分类')
+                })
         
-        if response.status_code == 200:
-            channels = response.json()
-            logger.info(f"成功获取频道数据: {len(channels)}个频道")
-            
-            # 完整记录频道数据用于调试
-            for channel in channels:
-                logger.debug(f"频道数据: id={channel.get('id', 'N/A')}, name={channel.get('name', 'N/A')}, type={channel.get('type', 'N/A')}")
-            
-            # 构建频道分类映射
-            categories = {}
-            for channel in channels:
-                if channel['type'] == 4:  # 4 表示分类
-                    categories[channel['id']] = channel['name']
-                    logger.debug(f"找到分类: {channel['name']} (ID: {channel['id']})")
-            
-            # 只保留文本频道，并添加分类信息
-            text_channels = []
-            for channel in channels:
-                # 支持更多类型的频道: 0=文本频道, 5=公告频道, 11=公共线程, 12=私有线程
-                if channel['type'] in [0, 5, 11, 12]:  
-                    parent_id = channel.get('parent_id')
-                    channel_info = {
-                        'id': channel['id'], 
-                        'name': channel['name'],
-                        'type': channel['type'],
-                        'parent_id': parent_id,
-                        'parent_name': categories.get(parent_id, '未分类')
-                    }
-                    text_channels.append(channel_info)
-                    logger.debug(f"添加有效频道: {channel['name']} (ID: {channel['id']}, 类型: {channel['type']})")
-            
-            logger.info(f"过滤后获取到 {len(text_channels)} 个可用频道")
-            return text_channels
-        elif response.status_code == 401:
-            logger.error(f"获取频道列表失败: 身份验证错误 (401)，原因可能是:")
-            logger.error(f"1. 机器人令牌无效")
-            logger.error(f"2. 机器人没有足够的权限/范围")
-            logger.error(f"3. 机器人没有启用必要的Intents (Server Members Intent)")
-            logger.error(f"请检查Discord开发者门户中的设置")
-            return []
-        elif response.status_code == 403:
-            logger.error(f"获取频道列表失败: 权限不足 (403)，机器人需要 'View Channels' 权限")
-            return []
-        else:
-            error_text = response.text[:200]  # 只记录前200个字符避免日志过长
-            logger.error(f"获取频道列表失败: {response.status_code} {error_text}")
-            return []
+        current_app.logger.info(f"过滤后返回 {len(formatted_channels)} 个可用频道")
+        return formatted_channels
+        
     except Exception as e:
-        logger.error(f"获取频道列表时出错: {str(e)}")
         import traceback
-        logger.error(traceback.format_exc())
+        current_app.logger.error(f"获取Discord频道时发生异常: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return []
 
 def get_bot_guilds(token):
-    """
-    获取机器人所在的Discord服务器列表
+    """获取机器人所在的Discord服务器列表
     
     Args:
         token: Discord机器人令牌
         
     Returns:
-        服务器列表，每个服务器包含id和name
+        list: 服务器列表，每个服务器包含id和name
     """
-    url = "https://discord.com/api/v10/users/@me/guilds"
-    headers = {"Authorization": f"Bot {token}"}
+    import requests
+    import logging
+    from flask import current_app
+    
+    # 确保令牌格式正确
+    if not token.startswith('Bot '):
+        current_app.logger.info(f"添加Bot前缀到令牌...")
+        token = f'Bot {token}'
+    
+    url = 'https://discord.com/api/v10/users/@me/guilds'
+    headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+    }
+    
+    current_app.logger.info(f"正在获取Discord服务器列表")
+    current_app.logger.info(f"请求URL: {url}")
     
     try:
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        guilds = response.json()
+        response = requests.get(url, headers=headers)
+        current_app.logger.info(f"API响应状态码: {response.status_code}")
         
-        # 格式化结果为简化列表
-        result = []
+        if response.status_code != 200:
+            current_app.logger.error(f"获取服务器列表失败: {response.status_code}")
+            current_app.logger.error(f"响应内容: {response.text}")
+            return []
+            
+        guilds = response.json()
+        current_app.logger.info(f"成功获取到 {len(guilds)} 个服务器")
+        
+        # 格式化返回结果
+        formatted_guilds = []
         for guild in guilds:
-            result.append({
-                "id": guild["id"],
-                "name": guild["name"],
-                "icon": guild.get("icon")
+            formatted_guilds.append({
+                'id': guild.get('id'),
+                'name': guild.get('name')
             })
             
-        return result
-    except requests.exceptions.RequestException as e:
-        logger.error(f"获取机器人服务器列表时出错: {str(e)}")
+        return formatted_guilds
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"获取Discord服务器列表时发生异常: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return []
-    except ValueError as e:
-        logger.error(f"解析机器人服务器列表时出错: {str(e)}")
+
+def get_guild_roles(token, guild_id):
+    """获取Discord服务器的角色列表
+    
+    Args:
+        token: Discord机器人令牌
+        guild_id: Discord服务器ID
+        
+    Returns:
+        list: 角色列表，每个角色包含id、name和color
+    """
+    import requests
+    import logging
+    from flask import current_app
+    
+    # 确保令牌格式正确
+    if not token.startswith('Bot '):
+        current_app.logger.info(f"添加Bot前缀到令牌...")
+        token = f'Bot {token}'
+    
+    url = f'https://discord.com/api/v10/guilds/{guild_id}/roles'
+    headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+    }
+    
+    current_app.logger.info(f"正在获取Discord服务器角色: {url}")
+    
+    try:
+        response = requests.get(url, headers=headers)
+        current_app.logger.info(f"API响应状态码: {response.status_code}")
+        
+        if response.status_code != 200:
+            current_app.logger.error(f"获取角色列表失败: {response.status_code}")
+            current_app.logger.error(f"响应内容: {response.text}")
+            return []
+            
+        roles = response.json()
+        current_app.logger.info(f"成功获取Discord角色: {len(roles)}个")
+        
+        # 格式化返回结果，过滤掉@everyone角色
+        formatted_roles = []
+        for role in roles:
+            # 跳过@everyone角色
+            if role.get('name') != '@everyone':
+                formatted_roles.append({
+                    'id': role.get('id'),
+                    'name': role.get('name'),
+                    'color': role.get('color')
+                })
+                
+        return formatted_roles
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"获取Discord角色时发生异常: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return []
+
+def get_guild_members(token, guild_id, limit=1000):
+    """获取Discord服务器的成员列表
+    
+    Args:
+        token: Discord机器人令牌
+        guild_id: Discord服务器ID
+        limit: 返回的最大成员数
+        
+    Returns:
+        list: 成员列表，每个成员包含id、username和roles
+    """
+    import requests
+    import logging
+    from flask import current_app
+    
+    # 确保令牌格式正确
+    if not token.startswith('Bot '):
+        current_app.logger.info(f"添加Bot前缀到令牌...")
+        token = f'Bot {token}'
+    
+    url = f'https://discord.com/api/v10/guilds/{guild_id}/members?limit={limit}'
+    headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+    }
+    
+    current_app.logger.info(f"正在获取Discord服务器成员: {guild_id}")
+    
+    try:
+        response = requests.get(url, headers=headers)
+        current_app.logger.info(f"API响应状态码: {response.status_code}")
+        
+        if response.status_code != 200:
+            current_app.logger.error(f"获取成员列表失败: {response.status_code}")
+            current_app.logger.error(f"响应内容: {response.text}")
+            return []
+            
+        members = response.json()
+        current_app.logger.info(f"成功获取Discord成员: {len(members)}个")
+        
+        # 格式化返回结果
+        formatted_members = []
+        for member in members:
+            user = member.get('user', {})
+            formatted_members.append({
+                'id': user.get('id'),
+                'username': user.get('username'),
+                'roles': member.get('roles', [])
+            })
+                
+        return formatted_members
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"获取Discord成员时发生异常: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return []
 
 def get_bot_info(token):
-    """
-    获取Discord机器人的信息
+    """获取Discord机器人信息
     
     Args:
         token: Discord机器人令牌
         
     Returns:
-        包含机器人信息的字典，如果令牌无效则返回None
+        dict: 机器人信息，包含id、username和avatar
     """
-    url = "https://discord.com/api/v10/users/@me"
-    headers = {"Authorization": f"Bot {token}"}
+    import requests
+    import logging
+    from flask import current_app
+    
+    # 确保令牌格式正确
+    if not token.startswith('Bot '):
+        current_app.logger.info(f"添加Bot前缀到令牌...")
+        token = f'Bot {token}'
+    
+    url = 'https://discord.com/api/v10/users/@me'
+    headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+    }
+    
+    current_app.logger.info(f"正在获取Discord机器人信息")
     
     try:
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        bot_data = response.json()
+        response = requests.get(url, headers=headers)
+        current_app.logger.info(f"API响应状态码: {response.status_code}")
         
-        # 返回格式化的机器人信息
+        if response.status_code != 200:
+            current_app.logger.error(f"获取机器人信息失败: {response.status_code}")
+            current_app.logger.error(f"响应内容: {response.text}")
+            return None
+            
+        bot_info = response.json()
+        current_app.logger.info(f"成功获取机器人信息: {bot_info.get('username')}")
+        
         return {
-            "id": bot_data["id"],
-            "username": bot_data["username"],
-            "discriminator": bot_data.get("discriminator", "0"),
-            "avatar": bot_data.get("avatar"),
-            "verified": bot_data.get("verified", False),
-            "flags": bot_data.get("flags", 0)
+            'id': bot_info.get('id'),
+            'username': bot_info.get('username'),
+            'avatar': bot_info.get('avatar')
         }
-    except requests.exceptions.RequestException as e:
-        logger.error(f"获取机器人信息时出错: {str(e)}")
-        return None
-    except ValueError as e:
-        logger.error(f"解析机器人信息时出错: {str(e)}")
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"获取Discord机器人信息时发生异常: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return None

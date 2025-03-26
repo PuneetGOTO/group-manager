@@ -1001,11 +1001,13 @@ def get_discord_channels():
         current_app.logger.error("缺少必要参数：令牌或服务器ID")
         return jsonify({'success': False, 'error': '缺少必要参数'})
     
-    # 确保令牌不包含"Bot "前缀，因为我们会在API调用中添加
-    if token.startswith('Bot '):
-        token = token[4:]
-        
-    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌前5位: {token[:5]}...")
+    # 确保令牌格式和内容正确（移除可能的引号和空格）
+    token = token.strip('\'"')
+    
+    # 我们在bot_client.py中已经处理了Bot前缀添加，这里不需要再处理
+    
+    current_app.logger.info(f"处理后的令牌前10位: {token[:10]}...")
+    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}")
     
     try:
         # 从Discord API获取频道列表
