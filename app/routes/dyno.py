@@ -14,7 +14,7 @@ import requests
 import os
 
 # 导入Discord相关的函数
-from app.discord.bot_client import get_bot_info, start_bot_process, get_bot_status, get_guild_channels, get_bot_guilds
+from app.discord.bot_client import get_bot_info, start_bot_process, check_bot_status, get_guild_channels, get_bot_guilds
 
 dyno_bp = Blueprint('dyno', __name__)
 
