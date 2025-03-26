@@ -257,16 +257,33 @@ def check_bot_status(token):
         )
         
         if response.status_code == 200:
-            # 令牌有效
+            # 令牌有效，但还需要检查机器人是否真正在线
             bot_data = response.json()
             bot_name = bot_data.get('username', 'Unknown')
             logger.info(f"成功连接到Discord API，机器人名称: {bot_name}")
             
-            # 检查机器人进程是否在运行
-            if DISCORD_BOT_PROCESS is not None:
-                return ('online', None)
-            else:
+            # 1. 检查机器人进程是否在运行
+            if DISCORD_BOT_PROCESS is None:
                 return ('offline', "机器人进程未运行")
+                
+            # 2. 进一步检查连接状态 - 尝试获取机器人的Guilds列表
+            try:
+                guilds_response = requests.get(
+                    'https://discord.com/api/v10/users/@me/guilds',
+                    headers=headers,
+                    timeout=5  # 添加超时参数
+                )
+                
+                if guilds_response.status_code == 200:
+                    # 真正连接到Discord
+                    return ('online', None)
+                else:
+                    # API可访问但获取服务器列表失败
+                    return ('offline', f"机器人可能已断开连接 (HTTP {guilds_response.status_code})")
+            except requests.Timeout:
+                return ('offline', "与Discord API通信超时")
+            except Exception as e:
+                return ('offline', f"检查连接状态时出错: {str(e)}")
         elif response.status_code == 401:
             # 令牌无效
             return ('error', "无效的机器人令牌")
