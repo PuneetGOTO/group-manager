@@ -729,10 +729,14 @@ def bot_dashboard():
     # 获取这些群组关联的机器人
     group_bots = DiscordBot.query.filter(DiscordBot.group_id.in_([g.id for g in user_groups])).all()
     
+    # 为模板传递一个默认的bot变量
+    bot = None
+    
     return render_template('dyno/bot.html', 
                           global_bot=global_bot, 
                           group_bots=group_bots,
-                          user_groups=user_groups)
+                          user_groups=user_groups,
+                          bot=bot)
 
 @dyno_bp.route('/bot/deactivate/<int:bot_id>', methods=['POST'])
 @login_required
