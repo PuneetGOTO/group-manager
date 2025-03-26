@@ -226,6 +226,7 @@ class DiscordBot(db.Model):
     """Discord机器人配置"""
     id = db.Column(db.Integer, primary_key=True)
     bot_token = db.Column(db.String(100), nullable=True)
+    bot_name = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, default=False)
     last_activated = db.Column(db.DateTime, nullable=True)
     last_status_check = db.Column(db.DateTime, nullable=True)
