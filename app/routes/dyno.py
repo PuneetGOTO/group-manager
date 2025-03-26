@@ -1022,3 +1022,96 @@ def get_discord_guilds():
         import traceback
         current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)})
+
+@dyno_bp.route('/api/bot/status', methods=['POST'])
+@login_required
+def check_bot_status_api():
+    """检查Discord机器人状态，用于AJAX请求"""
+    bot_id = request.form.get('bot_id')
+    
+    if not bot_id:
+        return jsonify({'success': False, 'error': '缺少机器人ID'})
+    
+    try:
+        bot = DiscordBot.query.get(bot_id)
+        
+        if not bot:
+            return jsonify({'success': False, 'error': '找不到指定的机器人'})
+        
+        # 验证用户权限
+        if bot.group_id:
+            group = Group.query.get(bot.group_id)
+            if not current_user.is_admin and current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
+                return jsonify({'success': False, 'error': '您没有权限查看此机器人状态'})
+        elif not current_user.is_admin:
+            return jsonify({'success': False, 'error': '只有管理员可以查看全局机器人状态'})
+        
+        # 检查实际状态
+        from app.discord.bot_client import check_bot_status
+        
+        status, error = check_bot_status(bot.bot_token)
+        
+        # 更新数据库中的状态
+        if status != bot.status:
+            if status == 'online':
+                bot.update_status('online')
+            elif status == 'error':
+                bot.update_status('error', error)
+            else:
+                bot.update_status('offline')
+            db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'status': status,
+            'message': error if error else '机器人状态已更新'
+        })
+    except Exception as e:
+        current_app.logger.error(f"API检查机器人状态时出错: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@dyno_bp.route('/api/bot/info', methods=['POST'])
+@login_required
+def get_bot_info_api():
+    """获取Discord机器人信息，用于AJAX请求"""
+    bot_id = request.form.get('bot_id')
+    
+    if not bot_id:
+        return jsonify({'success': False, 'error': '缺少机器人ID'})
+    
+    try:
+        bot = DiscordBot.query.get(bot_id)
+        
+        if not bot:
+            return jsonify({'success': False, 'error': '找不到指定的机器人'})
+        
+        # 验证用户权限
+        if bot.group_id:
+            group = Group.query.get(bot.group_id)
+            if not current_user.is_admin and current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
+                return jsonify({'success': False, 'error': '您没有权限查看此机器人信息'})
+        elif not current_user.is_admin:
+            return jsonify({'success': False, 'error': '只有管理员可以查看全局机器人信息'})
+        
+        # 获取机器人信息
+        from app.discord.bot_client import get_bot_info
+        
+        bot_info = get_bot_info(bot.bot_token)
+        
+        if not bot_info:
+            return jsonify({'success': False, 'error': '无法获取机器人信息，请检查令牌是否有效'})
+        
+        # 更新数据库中的机器人名称
+        if bot_info.get('username') and bot_info.get('username') != bot.bot_name:
+            bot.bot_name = bot_info.get('username')
+            db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'bot_name': bot_info.get('username', bot.bot_name or '未知机器人'),
+            'bot_id': bot_info.get('id'),
+            'avatar': bot_info.get('avatar')
+        })
+    except Exception as e:
+        current_app.logger.error(f"API获取机器人信息时出错: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})

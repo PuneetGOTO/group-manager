@@ -451,6 +451,21 @@
             }
         });
         
+        // 为所有状态检查按钮添加点击事件
+        document.querySelectorAll('.check-status-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const botId = this.getAttribute('data-bot-id');
+                checkBotStatus(botId);
+            });
+        });
+        
+        // 自动加载所有在线机器人信息
+        document.querySelectorAll('.bot-info-container').forEach(container => {
+            const botId = container.getAttribute('data-bot-id');
+            loadBotInfo(botId);
+        });
+        
         // 为所有频道选择按钮添加点击事件
         document.querySelectorAll('.select-channels-btn').forEach(button => {
             console.log('给频道选择按钮添加事件监听器');
@@ -982,6 +997,74 @@
             channelContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${error.message || '获取频道列表时出错'}</div>`;
             document.querySelector('.channel-actions').style.display = 'none';
             console.error('获取频道列表时出错:', error);
+        });
+    }
+    
+    // 加载机器人信息
+    function loadBotInfo(botId) {
+        fetch('/dyno/api/bot/info', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `bot_id=${botId}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`API响应错误: HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const botInfoContainer = document.querySelector(`.bot-info-container[data-bot-id="${botId}"]`);
+                if (botInfoContainer) {
+                    const botNameElement = botInfoContainer.querySelector('.bot-name');
+                    if (botNameElement) {
+                        botNameElement.textContent = data.bot_name;
+                    }
+                }
+            } else {
+                console.error('加载机器人信息失败:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('加载机器人信息时出错:', error);
+        });
+    }
+    
+    // 检查机器人状态
+    function checkBotStatus(botId) {
+        fetch('/dyno/api/bot/status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `bot_id=${botId}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`API响应错误: HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const statusElement = document.querySelector(`.check-status-btn[data-bot-id="${botId}"]`).closest('.d-flex').querySelector('.bot-status');
+                if (statusElement) {
+                    statusElement.className = `bot-status status-${data.status}`;
+                }
+                const statusTextElement = document.querySelector(`.check-status-btn[data-bot-id="${botId}"]`).closest('.d-flex').querySelector('span:nth-child(2)');
+                if (statusTextElement) {
+                    statusTextElement.textContent = data.status === 'online' ? '在线' : (data.status === 'error' ? '错误' : '离线');
+                    statusTextElement.className = `text-${data.status === 'online' ? 'success' : (data.status === 'error' ? 'danger' : 'secondary')}`;
+                }
+            } else {
+                console.error('检查机器人状态失败:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('检查机器人状态时出错:', error);
         });
     }
 </script>
