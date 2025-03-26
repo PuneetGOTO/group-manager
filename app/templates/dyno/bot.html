@@ -806,6 +806,7 @@
         })
         .then(response => {
             console.log('服务器响应状态:', response.status);
+            console.log('响应头信息:', JSON.stringify(Array.from(response.headers.entries())));
             if (!response.ok) {
                 if (response.status === 401) {
                     throw new Error('身份验证失败，请检查机器人令牌是否有效');
@@ -816,7 +817,9 @@
             return response.json();
         })
         .then(data => {
-            console.log('获取服务器列表结果:', data);
+            console.log('获取服务器列表结果:', JSON.stringify(data));
+            console.log('返回的服务器数量:', data.guilds ? data.guilds.length : 0);
+            
             if (data.success) {
                 guildSelect.innerHTML = '<option value="">请选择服务器</option>';
                 if (!data.guilds || data.guilds.length === 0) {
@@ -908,6 +911,10 @@
         
         // 通过后端获取频道列表
         console.log('发送API请求到:', '/dyno/api/discord/channels');
+        
+        // 添加更多日志记录
+        document.querySelector('.channel-actions').style.display = 'none';
+        
         fetch('/dyno/api/discord/channels', {
             method: 'POST',
             headers: {
@@ -928,7 +935,7 @@
             return response.json();
         })
         .then(data => {
-            console.log('获取频道列表结果:', data);
+            console.log('获取频道列表结果:', JSON.stringify(data));
             console.log('返回的频道数量:', data.channels ? data.channels.length : 0);
             
             if (data.success) {
@@ -952,6 +959,9 @@
                     document.querySelector('.channel-actions').style.display = 'none';
                     return;
                 }
+                
+                // 显示频道操作按钮
+                document.querySelector('.channel-actions').style.display = 'flex';
                 
                 // 创建频道分类结构
                 const channelsByCategory = {};
@@ -1021,15 +1031,15 @@
                 updateSelectedChannelsUI();
             } else {
                 let errorMsg = data.error || '获取频道失败';
+                console.error('API错误:', errorMsg, '完整响应:', data);
                 channelContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>错误: ${errorMsg}</div>`;
                 document.querySelector('.channel-actions').style.display = 'none';
-                console.error('API错误:', errorMsg);
             }
         })
         .catch(error => {
+            console.error('获取频道列表时出错:', error);
             channelContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${error.message || '获取频道列表时出错'}</div>`;
             document.querySelector('.channel-actions').style.display = 'none';
-            console.error('获取频道列表时出错:', error);
         });
     }
     
