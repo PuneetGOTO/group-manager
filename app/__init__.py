@@ -64,4 +64,31 @@ def create_app():
     app.register_blueprint(discord_bp, url_prefix='/discord')
     app.register_blueprint(dyno_bp, url_prefix='/dyno')
     
+    # 执行自动数据库迁移
+    with app.app_context():
+        try:
+            import sqlalchemy as sa
+            from sqlalchemy import text
+            import logging
+            
+            # 记录迁移信息
+            app.logger.info("检查数据库迁移：添加bot_name列到discord_bot表")
+            
+            # 检查字段是否已存在
+            inspector = sa.inspect(db.engine)
+            columns = [col['name'] for col in inspector.get_columns('discord_bot') if 'discord_bot' in [t.name for t in inspector.get_table_names()]]
+            
+            if 'discord_bot' in [t for t in inspector.get_table_names()] and 'bot_name' not in columns:
+                app.logger.info("正在添加bot_name字段到discord_bot表...")
+                # 执行添加列的SQL
+                db.session.execute(text("ALTER TABLE discord_bot ADD COLUMN bot_name VARCHAR(100)"))
+                db.session.commit()
+                app.logger.info("成功添加bot_name字段")
+            else:
+                app.logger.info("bot_name字段已存在或discord_bot表不存在，跳过迁移")
+        except Exception as e:
+            app.logger.error(f"数据库迁移过程中出错: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
+    
     return app
