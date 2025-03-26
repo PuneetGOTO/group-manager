@@ -29,7 +29,6 @@ class Event(db.Model):
     
     # 关系
     creator = db.relationship('User', backref='created_events')
-    group = db.relationship('Group', backref='events')
     participants = db.relationship('User', secondary=event_participants, backref='events')
     
     def __init__(self, title, start_time, end_time, creator_id, group_id, **kwargs):
