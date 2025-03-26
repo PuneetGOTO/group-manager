@@ -92,6 +92,12 @@
                                         {% endfor %}
                                     </select>
                                     <div class="form-text">选择发送欢迎消息的频道</div>
+                                    {% if channels and channels[0].get('is_test', False) %}
+                                    <div class="alert alert-warning mt-2">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <small>当前显示的是测试频道。请检查机器人设置和权限，确保能获取真实频道。</small>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 
                                 <div class="mb-3">
@@ -129,6 +135,12 @@
                                         {% endfor %}
                                     </select>
                                     <div class="form-text">选择发送告别消息的频道</div>
+                                    {% if channels and channels[0].get('is_test', False) %}
+                                    <div class="alert alert-warning mt-2">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <small>当前显示的是测试频道。请检查机器人设置和权限，确保能获取真实频道。</small>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 
                                 <div class="mb-3">

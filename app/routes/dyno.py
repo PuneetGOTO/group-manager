@@ -262,6 +262,7 @@ def welcome(group_id):
     
     # 获取服务器的频道列表
     channels = []
+    using_test_channels = False
     try:
         # 尝试获取机器人令牌
         bot = DiscordBot.query.filter_by(group_id=group_id, is_active=True).first()
@@ -282,20 +283,13 @@ def welcome(group_id):
                     if channel.get('type') == 0:  # 只包含文本频道
                         channels.append({
                             'id': channel.get('id'),
-                            'name': f"#{channel.get('name')}"
+                            'name': f"#{channel.get('name')}",
+                            'is_test': False
                         })
                 current_app.logger.info(f"成功获取到 {len(channels)} 个频道")
             else:
                 current_app.logger.warning("获取不到任何频道")
-                
-                # 添加测试频道以验证UI
-                import random
-                test_id = ''.join([str(random.randint(0, 9)) for _ in range(18)])
-                channels.append({
-                    'id': test_id,
-                    'name': '#测试频道'
-                })
-                current_app.logger.info(f"添加了测试频道: #测试频道 (ID: {test_id})")
+                using_test_channels = True
         else:
             current_app.logger.warning("没有找到活跃的机器人令牌，尝试使用用户令牌")
             # 没有机器人令牌，尝试使用用户令牌（旧方式）
@@ -319,22 +313,33 @@ def welcome(group_id):
                     if ch.get('type') == 0:  # 只包含文本频道
                         channels.append({
                             'id': ch.get('id'),
-                            'name': f"#{ch.get('name')}"
+                            'name': f"#{ch.get('name')}",
+                            'is_test': False
                         })
                 current_app.logger.info(f"通过用户令牌获取到 {len(channels)} 个频道")
             else:
                 current_app.logger.error(f"通过用户令牌获取频道失败: {response.status_code}")
+                using_test_channels = True
     except Exception as e:
         current_app.logger.error(f"获取Discord频道失败: {str(e)}")
+        using_test_channels = True
         
     # 如果没有获取到任何频道，添加一些测试频道
-    if not channels:
-        current_app.logger.warning("所有方法均未获取到频道，添加测试频道")
-        channels = [
-            {'id': 'test1', 'name': '#测试频道1'},
-            {'id': 'test2', 'name': '#测试频道2'},
-            {'id': 'test3', 'name': '#测试频道3'}
+    if not channels or using_test_channels:
+        current_app.logger.warning("所有方法均未获取到频道或有错误，添加测试频道")
+        test_channels = [
+            {'id': 'test1', 'name': '#测试频道1 (测试)', 'is_test': True},
+            {'id': 'test2', 'name': '#测试频道2 (测试)', 'is_test': True},
+            {'id': 'test3', 'name': '#测试频道3 (测试)', 'is_test': True}
         ]
+        
+        # 如果有真实频道，只在末尾添加测试频道；否则使用测试频道替代
+        if channels:
+            channels.extend(test_channels)
+            current_app.logger.info(f"在{len(channels)-3}个真实频道后添加了3个测试频道")
+        else:
+            channels = test_channels
+            current_app.logger.info("仅使用测试频道")
     
     if request.method == 'POST':
         # 更新欢迎消息设置
