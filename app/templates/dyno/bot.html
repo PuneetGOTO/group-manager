@@ -903,9 +903,11 @@
         const channelContainer = document.getElementById('channelCheckboxes');
         
         console.log('正在获取频道列表，服务器ID:', guildId);
+        console.log('令牌前10位:', token.substring(0, 10));
         channelContainer.innerHTML = '<p class="text-muted">正在加载频道列表...</p>';
         
         // 通过后端获取频道列表
+        console.log('发送API请求到:', '/dyno/api/discord/channels');
         fetch('/dyno/api/discord/channels', {
             method: 'POST',
             headers: {
@@ -915,6 +917,7 @@
         })
         .then(response => {
             console.log('服务器响应状态:', response.status);
+            console.log('响应头信息:', JSON.stringify(Array.from(response.headers.entries())));
             if (!response.ok) {
                 if (response.status === 401) {
                     throw new Error('身份验证失败，请检查机器人令牌是否有效且有足够权限');
@@ -926,11 +929,14 @@
         })
         .then(data => {
             console.log('获取频道列表结果:', data);
+            console.log('返回的频道数量:', data.channels ? data.channels.length : 0);
             
             if (data.success) {
+                // 清空频道容器
                 channelContainer.innerHTML = '';
                 
                 if (!data.channels || data.channels.length === 0) {
+                    console.error('未收到有效的频道数据');
                     channelContainer.innerHTML = `
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i> 没有可用的文本频道或机器人没有权限查看频道

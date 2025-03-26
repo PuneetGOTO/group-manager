@@ -994,7 +994,11 @@ def get_discord_channels():
     token = request.form.get('token', '').strip()
     guild_id = request.form.get('guild_id', '').strip()
     
+    # 打印请求信息
+    current_app.logger.info(f"收到频道请求，服务器ID: {guild_id}，有无令牌: {'是' if token else '否'}")
+    
     if not token or not guild_id:
+        current_app.logger.error("缺少必要参数：令牌或服务器ID")
         return jsonify({'success': False, 'error': '缺少必要参数'})
     
     # 确保令牌不包含"Bot "前缀，因为我们会在API调用中添加
@@ -1005,21 +1009,37 @@ def get_discord_channels():
     
     try:
         # 从Discord API获取频道列表
+        current_app.logger.info("调用get_guild_channels获取频道...")
         channels = get_guild_channels(token, guild_id)
         
         current_app.logger.info(f"获取到 {len(channels)} 个频道")
         
         # 打印获取到的频道数据以进行调试
         if channels:
-            channel_info = [(c['id'], c['name'], c['type']) for c in channels[:5]]
-            current_app.logger.debug(f"部分频道数据: {channel_info}")
+            # 打印所有频道信息便于调试
+            for i, channel in enumerate(channels):
+                current_app.logger.info(f"频道{i+1}: ID={channel['id']}, 名称={channel['name']}, 类型={channel['type']}, 分类={channel['parent_name']}")
+            
+            # 添加一个测试频道确保前端能正确解析
+            import random
+            test_channel_id = ''.join([str(random.randint(0, 9)) for _ in range(18)])
+            channels.append({
+                'id': test_channel_id,
+                'name': 'DEBUG-测试频道',
+                'type': 0,
+                'parent_id': None,
+                'parent_name': 'DEBUG-测试分类'
+            })
+            current_app.logger.info(f"添加了测试频道: DEBUG-测试频道 (ID: {test_channel_id})")
         else:
             current_app.logger.warning(f"没有获取到任何频道，可能是权限问题或服务器没有频道")
             
-        return jsonify({
+        result = {
             'success': True,
             'channels': channels
-        })
+        }
+        current_app.logger.info(f"返回频道数据，数量: {len(channels)}")
+        return jsonify(result)
     except Exception as e:
         error_message = str(e)
         current_app.logger.error(f"获取Discord频道时出错: {error_message}")
