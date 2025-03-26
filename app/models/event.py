@@ -29,8 +29,8 @@ class Event(db.Model):
     
     # 关系
     creator = db.relationship('User', backref='created_events')
-    participants = db.relationship('User', secondary=event_participants,
-                                  backref=db.backref('events', lazy='dynamic'))
+    group = db.relationship('Group', backref='events')
+    participants = db.relationship('User', secondary=event_participants, backref='events')
     
     def __init__(self, title, start_time, end_time, creator_id, group_id, **kwargs):
         self.title = title
@@ -54,3 +54,17 @@ class Event(db.Model):
     
     def __repr__(self):
         return f'<Event {self.title}>'
+
+class SystemEvent(db.Model):
+    """系统事件记录模型，用于记录重要系统操作"""
+    id = db.Column(db.Integer, primary_key=True)
+    event_type = db.Column(db.String(50), nullable=False)  # 事件类型，例如: bot_activated, user_login, etc.
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # 可能为空，如果是系统自动操作
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    data = db.Column(db.Text)  # JSON格式的事件数据
+    
+    # 关系
+    user = db.relationship('User', backref='system_events')
+    
+    def __repr__(self):
+        return f'<SystemEvent {self.event_type} by user_id={self.user_id} at {self.timestamp}>'

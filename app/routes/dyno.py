@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import (
     Group, User, AutoModSetting, WelcomeMessage, 
-    CustomCommand, LevelSystem, UserLevel, LogSetting, MusicSetting, SystemCommand, DiscordBot
+    CustomCommand, LevelSystem, UserLevel, LogSetting, MusicSetting, SystemCommand, DiscordBot, SystemEvent
 )
 from app.models.user import group_members
 from app.discord.client import DiscordClient
