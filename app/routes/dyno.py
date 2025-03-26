@@ -780,7 +780,7 @@ def check_bot_status(bot_id):
     # 验证是否有权限管理此机器人
     if bot.group_id:
         group = Group.query.get_or_404(bot.group_id)
-        if current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
+        if not current_user.is_admin and current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
             return jsonify({'success': False, 'message': '您没有权限管理此群组的机器人'})
     elif not current_user.is_admin:
         return jsonify({'success': False, 'message': '只有管理员可以管理全局机器人'})
@@ -932,15 +932,51 @@ def activate_bot():
         
         flash(f'群组 {group.name} 的机器人 {bot_info.get("username", "未知机器人")} 已激活', 'success')
     
+    # 启动Discord机器人进程
+    process_id = None
+    error_msg = None
+    try:
+        from app.discord.bot_client import start_bot_process
+        
+        # 获取刚才保存的机器人
+        bot = DiscordBot.query.get(bot_id)
+        
+        if not bot:
+            flash('机器人数据已保存，但获取Bot对象失败', 'warning')
+            error_msg = '获取Bot对象失败'
+        else:
+            # 启动机器人进程
+            process_id = start_bot_process(bot.bot_token, bot.channel_ids)
+            
+            if process_id:
+                current_app.logger.info(f"成功启动机器人进程，PID: {process_id}")
+                flash(f'机器人进程已启动 (PID: {process_id})', 'success')
+            else:
+                current_app.logger.error("启动机器人进程失败，但数据库记录已更新")
+                flash('机器人信息已保存，但启动进程失败，请检查日志', 'warning')
+                error_msg = '进程启动失败'
+    except Exception as e:
+        current_app.logger.error(f"启动机器人进程时出错: {str(e)}")
+        flash(f'保存机器人信息成功，但启动进程时出错: {str(e)}', 'warning')
+        error_msg = str(e)
+    
     # 记录机器人激活事件
+    event_data = {
+        'bot_id': bot_id,
+        'bot_name': bot_info.get('username', '未知机器人'),
+        'group_id': group_id
+    }
+    
+    # 添加进程信息到事件数据
+    if process_id:
+        event_data['process_id'] = process_id
+    if error_msg:
+        event_data['error'] = error_msg
+        
     event = SystemEvent(
         event_type='bot_activated',
         user_id=current_user.id,
-        data=json.dumps({
-            'bot_id': bot_id,
-            'bot_name': bot_info.get('username', '未知机器人'),
-            'group_id': group_id
-        })
+        data=json.dumps(event_data)
     )
     db.session.add(event)
     db.session.commit()
