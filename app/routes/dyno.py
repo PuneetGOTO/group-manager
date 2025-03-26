@@ -832,7 +832,7 @@ def activate_bot():
     
     if not bot_token:
         flash('请提供机器人令牌', 'danger')
-        return redirect(url_for('dyno.bot'))
+        return redirect(url_for('dyno.bot_dashboard'))
     
     # 记录用于调试
     current_app.logger.info(f"正在激活机器人，群组ID: {group_id}, 频道ID: {channel_ids}")
@@ -843,14 +843,14 @@ def activate_bot():
     
     if not bot_info:
         flash('无效的机器人令牌', 'danger')
-        return redirect(url_for('dyno.bot'))
+        return redirect(url_for('dyno.bot_dashboard'))
     
     # 根据群组ID处理不同类型的机器人
     if group_id == 'global':
         # 全局机器人
         if not current_user.is_admin:
             flash('只有管理员可以配置全局机器人', 'danger')
-            return redirect(url_for('dyno.bot'))
+            return redirect(url_for('dyno.bot_dashboard'))
         
         # 检查是否已存在全局机器人
         existing_bot = DiscordBot.query.filter_by(group_id=None).first()
@@ -888,17 +888,17 @@ def activate_bot():
             group_id = int(group_id)
         except (ValueError, TypeError):
             flash('无效的群组ID', 'danger')
-            return redirect(url_for('dyno.bot'))
+            return redirect(url_for('dyno.bot_dashboard'))
         
         # 检查用户是否有权限激活此群组的机器人
         group = Group.query.get(group_id)
         if not group:
             flash('群组不存在', 'danger')
-            return redirect(url_for('dyno.bot'))
+            return redirect(url_for('dyno.bot_dashboard'))
         
         if not current_user.is_admin and current_user.id != group.owner_id:
             flash('您没有权限为此群组激活机器人', 'danger')
-            return redirect(url_for('dyno.bot'))
+            return redirect(url_for('dyno.bot_dashboard'))
         
         # 检查是否已存在该群组的机器人
         existing_bot = DiscordBot.query.filter_by(group_id=group_id).first()
@@ -945,7 +945,7 @@ def activate_bot():
     db.session.add(event)
     db.session.commit()
     
-    return redirect(url_for('dyno.bot'))
+    return redirect(url_for('dyno.bot_dashboard'))
 
 # Discord频道API路由
 @dyno_bp.route('/api/discord/channels', methods=['POST'])
