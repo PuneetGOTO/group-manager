@@ -227,6 +227,7 @@ class DiscordBot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     bot_token = db.Column(db.String(100), nullable=True)
     bot_name = db.Column(db.String(100), nullable=True)
+    activated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=False)
     last_activated = db.Column(db.DateTime, nullable=True)
     last_status_check = db.Column(db.DateTime, nullable=True)

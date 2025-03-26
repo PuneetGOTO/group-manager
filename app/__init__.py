@@ -78,14 +78,22 @@ def create_app():
             inspector = sa.inspect(db.engine)
             columns = [col['name'] for col in inspector.get_columns('discord_bot') if 'discord_bot' in [t.name for t in inspector.get_table_names()]]
             
-            if 'discord_bot' in [t for t in inspector.get_table_names()] and 'bot_name' not in columns:
-                app.logger.info("正在添加bot_name字段到discord_bot表...")
-                # 执行添加列的SQL
-                db.session.execute(text("ALTER TABLE discord_bot ADD COLUMN bot_name VARCHAR(100)"))
-                db.session.commit()
-                app.logger.info("成功添加bot_name字段")
+            if 'discord_bot' in [t for t in inspector.get_table_names()]:
+                # 检查bot_name字段
+                if 'bot_name' not in columns:
+                    app.logger.info("正在添加bot_name字段到discord_bot表...")
+                    db.session.execute(text("ALTER TABLE discord_bot ADD COLUMN bot_name VARCHAR(100)"))
+                    db.session.commit()
+                    app.logger.info("成功添加bot_name字段")
+                
+                # 检查activated_by字段
+                if 'activated_by' not in columns:
+                    app.logger.info("正在添加activated_by字段到discord_bot表...")
+                    db.session.execute(text("ALTER TABLE discord_bot ADD COLUMN activated_by INTEGER REFERENCES user(id)"))
+                    db.session.commit()
+                    app.logger.info("成功添加activated_by字段")
             else:
-                app.logger.info("bot_name字段已存在或discord_bot表不存在，跳过迁移")
+                app.logger.info("discord_bot表不存在，跳过迁移")
         except Exception as e:
             app.logger.error(f"数据库迁移过程中出错: {str(e)}")
             import traceback
