@@ -1184,6 +1184,87 @@ def get_discord_channels():
             'error_details': traceback.format_exc()
         })
 
+@dyno_bp.route('/api/discord/channels', methods=['POST'])
+@login_required
+def get_discord_channels_api():
+    """获取指定服务器的Discord频道列表，用于AJAX请求"""
+    token = request.form.get('token')
+    guild_id = request.form.get('guild_id')
+    
+    if not token or not guild_id:
+        current_app.logger.error("获取Discord频道列表：缺少令牌或服务器ID")
+        return jsonify({'success': False, 'error': '缺少令牌或服务器ID'})
+    
+    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌前5位: {token[:5]}...")
+    
+    try:
+        # 添加Bot前缀到令牌
+        if not token.startswith('Bot '):
+            token = f'Bot {token}'
+        
+        # 定义API URL
+        url = f"https://discord.com/api/v10/guilds/{guild_id}/channels"
+        
+        # 发送请求获取频道
+        headers = {
+            'Authorization': token,
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code != 200:
+            current_app.logger.error(f"获取Discord频道列表失败，状态码: {response.status_code}")
+            error_message = f"API错误: HTTP {response.status_code}"
+            try:
+                error_data = response.json()
+                if 'message' in error_data:
+                    error_message = f"{error_message} - {error_data['message']}"
+            except:
+                pass
+            return jsonify({'success': False, 'error': error_message})
+        
+        # 解析频道数据
+        channels_data = response.json()
+        
+        # 过滤出文本频道和公告频道
+        text_channels = []
+        categories = {}
+        
+        # 首先找出所有分类
+        for channel in channels_data:
+            if channel.get('type') == 4:  # 4是分类类型
+                categories[channel['id']] = channel['name']
+        
+        # 然后处理频道并添加分类信息
+        for channel in channels_data:
+            # 仅包含文本频道(0)和公告频道(5)
+            if channel.get('type') in [0, 5]:
+                parent_id = channel.get('parent_id')
+                parent_name = categories.get(parent_id, '未分类') if parent_id else '未分类'
+                
+                text_channels.append({
+                    'id': channel['id'],
+                    'name': channel['name'],
+                    'type': channel['type'],
+                    'parent_id': parent_id,
+                    'parent_name': parent_name
+                })
+        
+        # 按照分类名称和频道名称排序
+        text_channels.sort(key=lambda x: (x['parent_name'], x['name']))
+        
+        current_app.logger.info(f"成功获取到 {len(text_channels)} 个频道")
+        return jsonify({
+            'success': True,
+            'channels': text_channels
+        })
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"获取Discord频道列表时出错: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)})
+
 # Discord服务器API路由
 @dyno_bp.route('/api/discord/guilds', methods=['POST'])
 @login_required
