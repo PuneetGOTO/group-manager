@@ -7,15 +7,16 @@ import asyncio
 import os
 import sys
 import time
-import json
-import threading
+import platform
+import psutil
 import signal
 import subprocess
-from discord.ext import commands
-from datetime import datetime
+import json
+import datetime
 from dotenv import load_dotenv
 import requests
 from flask import current_app
+from discord.ext import commands
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -176,129 +177,189 @@ def start_bot_process(token, channel_ids=None):
 
 def stop_bot_process():
     """
-    停止Discord机器人进程
+    停止Discord机器人进程 - 专为Docker容器和标准环境优化
     
     Returns:
         布尔值，表示是否成功停止进程
     """
     global DISCORD_BOT_PROCESS
     
+    logger.info("开始执行增强版机器人停止流程...")
+    has_stopped = False
+    
     try:
-        has_stopped = False
-        
-        # 首先尝试使用全局变量中的进程
+        # 方法1: 使用全局变量中的进程引用
         if DISCORD_BOT_PROCESS:
-            logger.info(f"正在停止Discord机器人进程 (PID: {DISCORD_BOT_PROCESS.pid})...")
-            
             try:
-                if os.name == 'nt':
-                    # Windows上使用taskkill来终止进程树
-                    subprocess.call(['taskkill', '/F', '/T', '/PID', str(DISCORD_BOT_PROCESS.pid)])
-                else:
-                    # Unix/Linux上使用kill -9强制终止
-                    os.kill(DISCORD_BOT_PROCESS.pid, signal.SIGKILL)
+                pid = DISCORD_BOT_PROCESS.pid
+                logger.info(f"通过全局变量找到进程 (PID: {pid})，准备终止...")
+                
+                if psutil.pid_exists(pid):
+                    # 使用psutil库安全终止进程及其子进程
+                    process = psutil.Process(pid)
                     
-                DISCORD_BOT_PROCESS = None
-                logger.info("Discord机器人进程已停止")
-                has_stopped = True
-            except Exception as process_err:
-                logger.error(f"停止进程时出错: {str(process_err)}")
-                # 继续尝试其他方法
-        
-        # 如果全局变量中没有进程，尝试从PID文件中获取
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        pid_file = os.path.join(base_dir, 'discord_bot.pid')
-        
-        if os.path.exists(pid_file):
-            with open(pid_file, 'r') as f:
-                try:
-                    pid = int(f.read().strip())
-                    logger.info(f"从PID文件中找到Discord机器人进程 (PID: {pid})...")
+                    # 终止所有子进程
+                    children = process.children(recursive=True)
+                    for child in children:
+                        try:
+                            logger.info(f"终止子进程 (PID: {child.pid})...")
+                            child.kill()
+                        except:
+                            pass
                     
-                    if os.name == 'nt':
-                        # Windows上使用taskkill
-                        subprocess.call(['taskkill', '/F', '/T', '/PID', str(pid)])
-                    else:
-                        # Unix/Linux上使用强制终止信号
-                        os.kill(pid, signal.SIGKILL)
+                    # 终止主进程
+                    process.kill()
                     
-                    # 删除PID文件
-                    os.remove(pid_file)
-                    logger.info("Discord机器人进程已停止")
+                    # 等待进程真正结束
+                    gone, still_alive = psutil.wait_procs([process], timeout=3)
+                    if still_alive:
+                        logger.warning(f"进程 {pid} 仍然存活，尝试强制终止...")
+                        for p in still_alive:
+                            try:
+                                p.kill()
+                            except:
+                                pass
+                    
+                    logger.info(f"成功终止进程 (PID: {pid})")
                     has_stopped = True
-                except (ValueError, ProcessLookupError) as e:
-                    # 无效的PID或者进程已经不存在
-                    logger.warning(f"PID文件中的进程ID无效或不存在: {str(e)}")
-                    if os.path.exists(pid_file):
-                        os.remove(pid_file)
+                else:
+                    logger.warning(f"全局变量中的进程 (PID: {pid}) 不存在")
+            except Exception as e:
+                logger.error(f"通过全局变量终止进程时出错: {str(e)}")
+            
+            # 无论成功与否，都重置全局变量
+            DISCORD_BOT_PROCESS = None
         
-        # 在Docker环境中，使用更强力的方法查找和终止进程
+        # 方法2: 查找所有与discord_bot相关的Python进程
         if not has_stopped:
+            logger.info("搜索所有相关的Discord机器人进程...")
             try:
-                # 在Docker/Linux环境中使用pkill强制终止所有Python进程中包含discord_bot的进程
-                if os.name != 'nt':  # 仅在Unix/Linux系统上尝试
-                    logger.info("使用pkill强制终止所有Discord机器人进程...")
-                    result = subprocess.run(['pkill', '-9', '-f', 'discord_bot.py'], 
-                                           stdout=subprocess.PIPE, 
-                                           stderr=subprocess.PIPE)
+                # 查找所有Python进程
+                for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    try:
+                        # 检查进程的命令行参数是否包含discord_bot
+                        if proc.info['cmdline'] and any('discord_bot' in cmd for cmd in proc.info['cmdline']):
+                            pid = proc.info['pid']
+                            logger.info(f"找到疑似Discord机器人进程 (PID: {pid})，准备终止...")
+                            
+                            # 终止进程及其子进程
+                            process = psutil.Process(pid)
+                            
+                            # 终止所有子进程
+                            children = process.children(recursive=True)
+                            for child in children:
+                                try:
+                                    logger.info(f"终止子进程 (PID: {child.pid})...")
+                                    child.kill()
+                                except:
+                                    pass
+                            
+                            # 终止主进程
+                            process.kill()
+                            
+                            logger.info(f"成功终止进程 (PID: {pid})")
+                            has_stopped = True
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        continue
+            except Exception as e:
+                logger.error(f"使用psutil搜索和终止进程时出错: {str(e)}")
+        
+        # 方法3: Docker专用方法 - 直接使用shell命令终止进程
+        if not has_stopped and platform.system() != 'Windows':
+            try:
+                logger.info("尝试Docker专用方法终止进程...")
+                
+                # 使用pkill命令强制终止所有Python进程中包含discord_bot的进程
+                logger.info("使用pkill -9 -f终止所有Discord相关进程...")
+                try:
+                    result = subprocess.run(['pkill', '-9', '-f', 'discord_bot'], 
+                                          stdout=subprocess.PIPE, 
+                                          stderr=subprocess.PIPE,
+                                          timeout=5)
                     if result.returncode == 0:
                         logger.info("使用pkill成功终止了进程")
                         has_stopped = True
                     else:
-                        logger.warning(f"pkill命令未找到进程: {result.stderr.decode()}")
-                        
-                    # 额外尝试使用killall终止所有python3进程
-                    logger.info("尝试查找并终止所有Python进程...")
-                    try:
-                        subprocess.run(['killall', '-9', 'python3'], 
-                                      stdout=subprocess.PIPE, 
-                                      stderr=subprocess.PIPE)
-                        logger.info("已尝试终止所有Python进程")
-                    except Exception as killall_err:
-                        logger.error(f"使用killall终止进程时出错: {str(killall_err)}")
-            except Exception as find_err:
-                logger.error(f"使用pkill终止Discord进程时出错: {str(find_err)}")
+                        logger.warning(f"pkill命令未找到进程: {result.stderr.decode() if result.stderr else '无输出'}")
+                except subprocess.TimeoutExpired:
+                    logger.warning("pkill命令超时")
+                except Exception as e:
+                    logger.error(f"执行pkill命令时出错: {str(e)}")
                 
-            # 使用ps命令查找并手动终止进程的备用方法
+                # 使用killall命令终止python3进程
+                logger.info("尝试使用killall终止所有Python进程...")
+                try:
+                    subprocess.run(['killall', '-9', 'python3'], 
+                                  stdout=subprocess.PIPE, 
+                                  stderr=subprocess.PIPE,
+                                  timeout=5)
+                    logger.info("已尝试killall终止所有Python进程")
+                    # 这里不设置has_stopped，因为这是最后手段，不确定是否真的终止了目标进程
+                except Exception as e:
+                    logger.error(f"执行killall命令时出错: {str(e)}")
+                
+                # 查看进程是否还在运行
+                logger.info("检查是否还有Discord机器人进程在运行...")
+                try:
+                    result = subprocess.run(['ps', 'aux'], 
+                                          stdout=subprocess.PIPE, 
+                                          stderr=subprocess.PIPE,
+                                          timeout=5)
+                    output = result.stdout.decode()
+                    if 'discord_bot' in output:
+                        logger.warning("仍然有Discord机器人进程在运行")
+                    else:
+                        logger.info("没有发现运行中的Discord机器人进程")
+                        has_stopped = True
+                except Exception as e:
+                    logger.error(f"检查进程运行状态时出错: {str(e)}")
+            except Exception as e:
+                logger.error(f"Docker专用方法执行失败: {str(e)}")
+        
+        # 方法4: 最后手段 - 使用系统命令强制终止所有相关进程
+        if not has_stopped and platform.system() != 'Windows':
             try:
-                logger.info("尝试查找并终止Discord机器人进程...")
-                bot_processes = subprocess.check_output(["ps", "aux"]).decode()
+                logger.info("尝试最后手段...")
+                # 强制杀死所有python进程 - 注意这可能影响系统中的其他Python应用
+                commands = [
+                    "kill -9 $(pgrep -f 'discord_bot')",
+                    "kill -9 $(ps aux | grep discord_bot | grep -v grep | awk '{print $2}')"
+                ]
                 
-                # 寻找python进程中运行bot.py的实例
-                for line in bot_processes.split('\n'):
-                    if 'python' in line and 'discord_bot.py' in line:
-                        parts = line.split()
-                        if len(parts) > 1:
-                            try:
-                                process_pid = int(parts[1])
-                                logger.info(f"找到可能的Discord机器人进程 PID: {process_pid}")
-                                os.kill(process_pid, signal.SIGKILL)
-                                logger.info(f"已终止进程 PID: {process_pid}")
-                                has_stopped = True
-                            except Exception as kill_err:
-                                logger.error(f"终止进程时出错: {str(kill_err)}")
-            except Exception as find_err:
-                logger.error(f"查找Discord进程时出错: {str(find_err)}")
+                for cmd in commands:
+                    try:
+                        logger.info(f"执行命令: {cmd}")
+                        subprocess.run(cmd, shell=True, timeout=5)
+                        logger.info(f"命令 {cmd} 执行完成")
+                    except Exception as e:
+                        logger.error(f"执行命令 {cmd} 时出错: {str(e)}")
+                
+                # 假设我们已经尽力了
+                has_stopped = True
+            except Exception as e:
+                logger.error(f"最后手段执行失败: {str(e)}")
         
         # 无论成功与否，都更新数据库中所有机器人状态为离线
         try:
             from app.models import DiscordBot
             from app import db
+            
+            logger.info("更新数据库中所有机器人状态为离线...")
             active_bots = DiscordBot.query.filter_by(is_active=True).all()
             for bot in active_bots:
+                logger.info(f"将机器人 ID: {bot.id} 状态更新为离线")
                 bot.is_active = False
                 bot.status = 'offline'
+            
             db.session.commit()
             logger.info(f"已将所有机器人状态更新为离线，数量: {len(active_bots)}")
-            # 至少数据库状态已更新
-            return True
+            return True  # 即使实际进程可能没有终止，但至少数据库状态已更新
         except Exception as db_err:
             logger.error(f"更新数据库机器人状态时出错: {str(db_err)}")
         
         return has_stopped
-            
     except Exception as e:
-        logger.error(f"停止Discord机器人进程时出错: {str(e)}")
+        logger.error(f"停止Discord机器人进程主函数出错: {str(e)}")
         return False
 
 def check_bot_status(token):
