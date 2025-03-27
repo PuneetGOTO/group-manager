@@ -17,6 +17,7 @@ DISCORD_SCOPES = [
     'email',                    # 获取用户邮箱
     'guilds',                   # 获取用户所在的服务器列表
     'guilds.members.read',      # 读取服务器成员信息
+    'guilds.channels.read',     # 读取服务器频道信息
     'bot',                      # 添加机器人到服务器
     'applications.commands'     # 允许应用程序命令
 ]
