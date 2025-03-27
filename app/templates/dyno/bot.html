@@ -387,7 +387,6 @@
     </div>
 </div>
 
-<!-- 简化版的频道显示JavaScript -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         console.log('页面已加载，初始化频道选择功能');
@@ -395,97 +394,6 @@
         // 全局变量
         let currentInputField;
         let selectedChannels = {};
-        const channelSelectModal = new bootstrap.Modal(document.getElementById('channelSelectModal'));
-        
-        // 为所有频道选择按钮添加点击事件
-        document.querySelectorAll('.select-channels-btn').forEach(button => {
-            console.log('给频道选择按钮添加事件监听器');
-            button.addEventListener('click', function(e) {
-                console.log('频道选择按钮被点击');
-                e.preventDefault();
-                
-                // 获取关联的输入字段ID和元素
-                const inputId = this.getAttribute('data-input-id');
-                currentInputField = document.getElementById(inputId);
-                
-                if (!currentInputField) {
-                    console.error('找不到关联的输入字段:', inputId);
-                    return;
-                }
-                
-                console.log('当前输入字段:', currentInputField.id);
-                
-                // 重置已选频道
-                selectedChannels = {};
-                
-                // 如果已有选择，加载它们
-                if (currentInputField.value) {
-                    console.log('加载已保存的频道ID:', currentInputField.value);
-                    const channelIds = currentInputField.value.split(',');
-                    
-                    channelIds.forEach(id => {
-                        if (id.trim()) {
-                            selectedChannels[id.trim()] = true;
-                        }
-                    });
-                }
-                
-                // 先尝试显示备用频道列表
-                document.getElementById('channelLoadingMsg').style.display = 'block';
-                document.getElementById('backupChannelList').style.display = 'none';
-                document.getElementById('channelCheckboxes').innerHTML = '';
-                
-                // 显示备用频道列表以确保UI正常工作
-                setTimeout(function() {
-                    document.getElementById('channelLoadingMsg').style.display = 'none';
-                    document.getElementById('backupChannelList').style.display = 'block';
-                    
-                    // 根据已保存的选择勾选对应的复选框
-                    document.querySelectorAll('#backupChannelList .channel-checkbox').forEach(checkbox => {
-                        checkbox.checked = selectedChannels[checkbox.value] || false;
-                    });
-                }, 500);
-                
-                // 显示模态框
-                channelSelectModal.show();
-            });
-        });
-        
-        // 确认选择按钮
-        document.getElementById('confirmChannelSelect').addEventListener('click', function() {
-            console.log('确认选择按钮被点击');
-            
-            // 收集选中的频道
-            const checkboxes = document.querySelectorAll('#backupChannelList .channel-checkbox:checked');
-            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
-            
-            console.log(`已选择 ${selectedIds.length} 个频道: ${selectedIds.join(',')}`);
-            
-            if (currentInputField) {
-                // 更新输入字段
-                currentInputField.value = selectedIds.join(',');
-                
-                // 更新显示的频道数量
-                const countEl = currentInputField.closest('.input-group').querySelector('.selected-channels-display');
-                if (countEl) {
-                    countEl.textContent = selectedIds.length > 0 ? 
-                        `已选择 ${selectedIds.length} 个频道` : '所有频道';
-                }
-            }
-            
-            // 关闭模态框
-            channelSelectModal.hide();
-        });
-    });
-</script>
-
-{% block scripts %}
-<script>
-    let currentInputField;
-    let selectedChannels = {};
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        // 获取模态框对象
         const channelSelectModal = new bootstrap.Modal(document.getElementById('channelSelectModal'));
         
         // 初始化显示已选频道数量
@@ -1195,6 +1103,407 @@
             document.querySelector('.channel-actions').style.display = 'none';
         });
     }
+    
+    // 加载机器人信息
+    function loadBotInfo(botId) {
+        fetch('/dyno/api/bot/info', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `bot_id=${botId}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`API响应错误: HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const botInfoContainer = document.querySelector(`.bot-info-container[data-bot-id="${botId}"]`);
+                if (botInfoContainer) {
+                    const botNameElement = botInfoContainer.querySelector('.bot-name');
+                    if (botNameElement) {
+                        botNameElement.textContent = data.bot_name;
+                    }
+                }
+            } else {
+                console.error('加载机器人信息失败:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('加载机器人信息时出错:', error);
+        });
+    }
+    
+    // 检查机器人状态
+    function checkBotStatus(botId) {
+        fetch('/dyno/api/bot/status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `bot_id=${botId}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`API响应错误: HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const statusElement = document.querySelector(`.check-status-btn[data-bot-id="${botId}"]`).closest('.d-flex').querySelector('.bot-status');
+                if (statusElement) {
+                    statusElement.className = `bot-status status-${data.status}`;
+                }
+                const statusTextElement = document.querySelector(`.check-status-btn[data-bot-id="${botId}"]`).closest('.d-flex').querySelector('span:nth-child(2)');
+                if (statusTextElement) {
+                    statusTextElement.textContent = data.status === 'online' ? '在线' : (data.status === 'error' ? '错误' : '离线');
+                    statusTextElement.className = `text-${data.status === 'online' ? 'success' : (data.status === 'error' ? 'danger' : 'secondary')}`;
+                }
+            } else {
+                console.error('检查机器人状态失败:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('检查机器人状态时出错:', error);
+        });
+    }
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentInputField;
+    let selectedChannels = {};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取模态框对象
+        const channelSelectModal = new bootstrap.Modal(document.getElementById('channelSelectModal'));
+        
+        // 初始化显示已选频道数量
+        document.querySelectorAll('input[name="channel_ids"]').forEach(input => {
+            if (input.value) {
+                const channelIds = input.value.split(',');
+                const channelCount = channelIds.length;
+                const countText = channelCount > 0 ? `已选择 ${channelCount} 个频道` : '所有频道';
+                
+                const displayElement = input.closest('.input-group').querySelector('.selected-channels-display');
+                if (displayElement) {
+                    displayElement.textContent = countText;
+                }
+            }
+        });
+        
+        // 为所有状态检查按钮添加点击事件
+        document.querySelectorAll('.check-status-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const botId = this.getAttribute('data-bot-id');
+                checkBotStatus(botId);
+            });
+        });
+        
+        // 自动加载所有在线机器人信息
+        document.querySelectorAll('.bot-info-container').forEach(container => {
+            const botId = container.getAttribute('data-bot-id');
+            loadBotInfo(botId);
+        });
+        
+        // 为所有频道选择按钮添加点击事件
+        document.querySelectorAll('.select-channels-btn').forEach(button => {
+            console.log('给频道选择按钮添加事件监听器');
+            button.addEventListener('click', function(e) {
+                console.log('频道选择按钮被点击');
+                e.preventDefault();
+                
+                // 获取关联的输入字段ID和元素
+                const inputId = this.getAttribute('data-input-id');
+                currentInputField = document.getElementById(inputId);
+                
+                if (!currentInputField) {
+                    console.error('找不到关联的输入字段:', inputId);
+                    currentInputField = this.closest('.input-group').querySelector('input[name="channel_ids"]');
+                }
+                
+                console.log('当前输入字段:', currentInputField ? currentInputField.id : '未找到');
+                
+                // 确保正确获取token，检查多种可能的位置
+                let tokenField = this.closest('form').querySelector('input[name="bot_token"]');
+                if (!tokenField || !tokenField.value) {
+                    // 尝试从其他表单元素获取
+                    tokenField = document.querySelector('form input[name="bot_token"]');
+                }
+                
+                let token = tokenField ? tokenField.value : '';
+                
+                console.log('获取到token字段:', tokenField ? '是' : '否');
+                console.log('token长度:', token.length);
+                
+                if (!token) {
+                    alert('请先输入机器人令牌以获取频道列表');
+                    return;
+                }
+                
+                // 重置已选频道
+                selectedChannels = {};
+                
+                // 如果已有选择，加载它们
+                if (currentInputField && currentInputField.value) {
+                    console.log('加载已保存的频道ID:', currentInputField.value);
+                    const channelIds = currentInputField.value.split(',');
+                    
+                    channelIds.forEach(id => {
+                        if (id.trim()) {
+                            selectedChannels[id.trim()] = true;
+                        }
+                    });
+                }
+                
+                updateSelectedChannelsUI();
+                
+                // 显示模态框并填充一个测试频道以验证UI显示
+                const channelContainer = document.getElementById('channelCheckboxes');
+                channelContainer.innerHTML = '<div class="alert alert-info">正在加载频道列表...</div>';
+                
+                // 强制显示频道操作按钮用于测试
+                document.querySelector('.channel-actions').style.display = 'flex';
+                
+                // 手动添加一个测试频道以验证UI是否正常工作
+                channelContainer.innerHTML = '';
+                
+                // 创建测试分类
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'mb-2';
+                
+                const categoryHeader = document.createElement('h6');
+                categoryHeader.textContent = '测试分类';
+                categoryDiv.appendChild(categoryHeader);
+                
+                // 创建测试频道
+                const div = document.createElement('div');
+                div.className = 'form-check ms-3';
+                
+                const input = document.createElement('input');
+                input.className = 'form-check-input channel-checkbox';
+                input.type = 'checkbox';
+                input.id = 'channel-test123';
+                input.value = 'test123';
+                
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = 'channel-test123';
+                label.textContent = '#测试频道';
+                
+                div.appendChild(input);
+                div.appendChild(label);
+                categoryDiv.appendChild(div);
+                
+                channelContainer.appendChild(categoryDiv);
+                
+                console.log('已添加测试频道到UI');
+                updateSelectedChannelsUI();
+                
+                // 获取服务器列表
+                fetchDiscordGuilds(token);
+                
+                channelSelectModal.show();
+            });
+        });
+        
+        // 频道搜索功能
+        document.getElementById('channelSearch').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const channelElements = document.querySelectorAll('#channelCheckboxes .form-check');
+            
+            channelElements.forEach(element => {
+                const channelName = element.querySelector('label').textContent.toLowerCase();
+                if (channelName.includes(searchTerm)) {
+                    element.style.display = '';
+                } else {
+                    element.style.display = 'none';
+                }
+            });
+        });
+        
+        // 全选按钮
+        document.getElementById('selectAllBtn').addEventListener('click', function() {
+            const visibleCheckboxes = Array.from(document.querySelectorAll('#channelCheckboxes .form-check:not([style*="display: none"]) input[type="checkbox"]'));
+            visibleCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                selectedChannels[checkbox.value] = true;
+            });
+            updateSelectedChannelsUI();
+        });
+        
+        // 取消全选按钮
+        document.getElementById('deselectAllBtn').addEventListener('click', function() {
+            const visibleCheckboxes = Array.from(document.querySelectorAll('#channelCheckboxes .form-check:not([style*="display: none"]) input[type="checkbox"]'));
+            visibleCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                delete selectedChannels[checkbox.value];
+            });
+            updateSelectedChannelsUI();
+        });
+        
+        // 清除所有已选频道
+        document.getElementById('clearSelectionsBtn').addEventListener('click', function() {
+            document.querySelectorAll('#channelCheckboxes input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            selectedChannels = {};
+            updateSelectedChannelsUI();
+        });
+        
+        // 确认频道选择
+        document.getElementById('confirmChannelSelect').addEventListener('click', function() {
+            const selectedIds = Object.keys(selectedChannels);
+            console.log('确认选择频道，数量:', selectedIds.length);
+            console.log('选择的频道ID:', selectedIds.join(','));
+            
+            if (currentInputField) {
+                // 获取选中的频道ID列表
+                const channelIdList = Object.keys(selectedChannels);
+                
+                // 检查是否选择了任何频道
+                if (channelIdList.length === 0) {
+                    alert('请至少选择一个频道');
+                    return;
+                }
+                
+                // 准备频道数据JSON字符串，包含完整的频道信息
+                const channelData = JSON.stringify(selectedChannels);
+                
+                // 设置隐藏字段的值 - 使用完整的频道数据
+                currentInputField.value = channelData;
+                
+                // 显示摘要信息
+                const channelCount = channelIdList.length;
+                const summaryElement = document.getElementById(currentInputField.id + '_summary');
+                
+                if (summaryElement) {
+                    let summary = `<strong>${channelCount}个频道已选择</strong>: `;
+                    const displayLimit = 3;
+                    const displayChannels = channelIdList.slice(0, displayLimit);
+                    
+                    // 创建显示的频道列表
+                    const channelNames = displayChannels.map(id => {
+                        const channel = selectedChannels[id];
+                        const icon = channel.type == 5 ? '<i class="fas fa-bullhorn"></i>' : '<i class="fas fa-hashtag"></i>';
+                        return `${icon} ${channel.name}`;
+                    });
+                    
+                    summary += channelNames.join(', ');
+                    
+                    // 如果有更多未显示的频道，添加提示
+                    if (channelCount > displayLimit) {
+                        summary += ` 和 ${channelCount - displayLimit} 个其他频道`;
+                    }
+                    
+                    summaryElement.innerHTML = summary;
+                }
+                
+                // 关闭模态框
+                bootstrap.Modal.getInstance(document.getElementById('channelSelectModal')).hide();
+            }
+        });
+        
+        // 搜索频道
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            searchChannels();
+        });
+        
+        document.getElementById('channelSearch').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                searchChannels();
+            }
+        });
+        
+        function searchChannels() {
+            const searchTerm = document.getElementById('channelSearch').value.toLowerCase();
+            console.log('搜索频道:', searchTerm);
+            
+            const allChannels = document.querySelectorAll('#channelCheckboxes .form-check');
+            if (allChannels.length === 0) {
+                console.log('没有可搜索的频道');
+                return;
+            }
+            
+            let visibleCount = 0;
+            
+            allChannels.forEach(channelItem => {
+                const label = channelItem.querySelector('label');
+                if (!label) {
+                    channelItem.style.display = 'none';
+                    return;
+                }
+                
+                const channelName = label.textContent.toLowerCase();
+                
+                if (searchTerm === '' || channelName.includes(searchTerm)) {
+                    channelItem.style.display = '';
+                    visibleCount++;
+                } else {
+                    channelItem.style.display = 'none';
+                }
+            });
+            
+            // 处理搜索结果
+            const categoryHeaders = document.querySelectorAll('#channelCheckboxes h6');
+            categoryHeaders.forEach(header => {
+                const categoryDiv = header.closest('div');
+                const channels = categoryDiv.querySelectorAll('.form-check');
+                let visibleInCategory = 0;
+                
+                channels.forEach(channel => {
+                    if (channel.style.display !== 'none') {
+                        visibleInCategory++;
+                    }
+                });
+                
+                if (visibleInCategory === 0) {
+                    header.style.display = 'none';
+                } else {
+                    header.style.display = '';
+                }
+            });
+            
+            console.log('可见频道数:', visibleCount);
+        }
+        
+        // 服务器选择变更时获取频道
+        document.getElementById('guildSelect').addEventListener('change', function() {
+            const guildId = this.value;
+            const channelContainer = document.getElementById('channelCheckboxes');
+            
+            // 清空频道容器
+            channelContainer.innerHTML = '';
+            document.querySelector('.channel-actions').style.display = 'none';
+            
+            // 如果没有选择服务器，直接返回
+            if (!guildId) {
+                channelContainer.innerHTML = '<p class="text-muted">请先选择一个服务器</p>';
+                return;
+            }
+            
+            // 获取当前token
+            let token = '';
+            const tokenField = document.querySelector('input[name="bot_token"]');
+            if (tokenField) {
+                token = tokenField.value;
+            }
+            
+            if (!token) {
+                channelContainer.innerHTML = '<p class="text-danger">无法获取机器人令牌</p>';
+                return;
+            }
+            
+            // 加载对应服务器的频道
+            fetchDiscordChannels(guildId, token);
+        });
+    });
     
     // 加载机器人信息
     function loadBotInfo(botId) {
