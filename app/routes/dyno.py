@@ -967,7 +967,7 @@ def activate_bot():
                 event = SystemEvent(
                     event_type='bot_activated',
                     user_id=current_user.id,
-                    details=json.dumps({
+                    data=json.dumps({
                         'bot_id': existing_bot.id,
                         'bot_name': existing_bot.bot_name,
                         'group_id': existing_bot.group_id
