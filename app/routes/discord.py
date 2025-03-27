@@ -699,14 +699,18 @@ class DiscordClient:
     @staticmethod
     def get_auth_url(state):
         """获取Discord授权页面的URL"""
+        from app.discord.config import DISCORD_SCOPES
+        
         params = {
             'client_id': os.environ.get('DISCORD_CLIENT_ID'),
             'redirect_uri': os.environ.get('DISCORD_REDIRECT_URI'),
             'response_type': 'code',
-            'scope': 'identify guilds',
+            'scope': ' '.join(DISCORD_SCOPES),  # 使用配置文件中定义的完整权限范围
+            'permissions': '8',  # 添加管理员权限
             'state': state
         }
-        return f"{DiscordClient.DISCORD_API_ENDPOINT}/oauth2/authorize?{requests.compat.urlencode(params)}"
+        # 使用正确的URL基础地址
+        return f"https://discord.com/oauth2/authorize?{requests.compat.urlencode(params)}"
 
     @staticmethod
     def exchange_code(code):
