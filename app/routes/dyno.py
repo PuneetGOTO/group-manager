@@ -937,10 +937,12 @@ def activate_bot():
     if bot_id:
         try:
             bot_id = int(bot_id)
-            existing_bot = DiscordBot.query.get(bot_id)
+            # 检查bot_id是否存在
+            existing_bot = DiscordBot.query.filter_by(id=bot_id).first()
             if existing_bot:
                 # 验证权限
-                if existing_bot.group_id and existing_bot.group_id != current_user.id:
+                if existing_bot.group_id and str(existing_bot.group_id) != str(group_id):
+                    current_app.logger.warning(f"尝试更新不匹配的群组ID: 机器人群组 {existing_bot.group_id}, 请求群组 {group_id}")
                     group = Group.query.get(existing_bot.group_id)
                     if not group or (not current_user.is_admin and current_user.id != group.owner_id):
                         flash('您没有权限管理此机器人', 'danger')
@@ -974,11 +976,20 @@ def activate_bot():
                 db.session.add(event)
                 db.session.commit()
                 
-                return redirect(url_for('dyno.bot_dashboard'))
-        except (ValueError, TypeError):
-            current_app.logger.error(f"处理bot_id时出错: {bot_id}")
+                # 启动机器人进程
+                success, pid = start_discord_bot(existing_bot.bot_token, channel_ids)
+                if success:
+                    current_app.logger.info(f"成功启动机器人进程，PID: {pid}")
+                    # 已在前面更新机器人状态，这里无需重复
+                    return redirect(url_for('dyno.bot_dashboard'))
+                else:
+                    flash('机器人启动失败', 'danger')
+                    return redirect(url_for('dyno.bot_dashboard'))
+            else:
+                current_app.logger.warning(f"找不到bot_id为{bot_id}的机器人记录")
+        except Exception as e:
+            current_app.logger.error(f"处理bot_id时出错: {bot_id}, 错误: {str(e)}")
             # 继续执行常规流程
-    
     # 根据群组ID处理不同类型的机器人
     if group_id == 'global':
         # 全局机器人
@@ -1067,55 +1078,42 @@ def activate_bot():
         flash(f'群组 {group.name} 的机器人 {bot_info.get("username", "未知机器人")} 已激活', 'success')
     
     # 启动Discord机器人进程
-    process_id = None
-    error_msg = None
+    success, pid = start_discord_bot(bot_token, channel_ids)
+    if success:
+        current_app.logger.info(f"成功启动机器人进程，PID: {pid}")
+        # 已在前面更新机器人状态，这里无需重复
+        return redirect(url_for('dyno.bot_dashboard'))
+    else:
+        flash('机器人启动失败', 'danger')
+        return redirect(url_for('dyno.bot_dashboard'))
+
+# 辅助函数：启动Discord机器人进程
+def start_discord_bot(bot_token, channel_ids):
+    """
+    启动Discord机器人进程
+    
+    参数:
+        bot_token: Discord机器人令牌
+        channel_ids: 用逗号分隔的频道ID列表
+        
+    返回:
+        (success, process_id): 成功状态和进程ID (如果成功)
+    """
     try:
         from app.discord.bot_client import start_bot_process
         
-        # 获取刚才保存的机器人
-        bot = DiscordBot.query.get(bot_id)
+        current_app.logger.info("正在启动Discord机器人进程...")
+        process_id = start_bot_process(bot_token, channel_ids)
         
-        if not bot:
-            flash('机器人数据已保存，但获取Bot对象失败', 'warning')
-            error_msg = '获取Bot对象失败'
+        if process_id:
+            current_app.logger.info(f"Discord机器人进程已启动，PID: {process_id}")
+            return True, process_id
         else:
-            # 启动机器人进程
-            process_id = start_bot_process(bot.bot_token, bot.channel_ids)
-            
-            if process_id:
-                current_app.logger.info(f"成功启动机器人进程，PID: {process_id}")
-                flash(f'机器人进程已启动 (PID: {process_id})', 'success')
-            else:
-                current_app.logger.error("启动机器人进程失败，但数据库记录已更新")
-                flash('机器人信息已保存，但启动进程失败，请检查日志', 'warning')
-                error_msg = '进程启动失败'
+            current_app.logger.error("启动机器人进程失败")
+            return False, None
     except Exception as e:
         current_app.logger.error(f"启动机器人进程时出错: {str(e)}")
-        flash(f'保存机器人信息成功，但启动进程时出错: {str(e)}', 'warning')
-        error_msg = str(e)
-    
-    # 记录机器人激活事件
-    event_data = {
-        'bot_id': bot_id,
-        'bot_name': bot_info.get('username', '未知机器人'),
-        'group_id': group_id
-    }
-    
-    # 添加进程信息到事件数据
-    if process_id:
-        event_data['process_id'] = process_id
-    if error_msg:
-        event_data['error'] = error_msg
-        
-    event = SystemEvent(
-        event_type='bot_activated',
-        user_id=current_user.id,
-        data=json.dumps(event_data)
-    )
-    db.session.add(event)
-    db.session.commit()
-    
-    return redirect(url_for('dyno.bot_dashboard'))
+        return False, None
 
 # Discord频道API路由
 @dyno_bp.route('/api/discord/channels', methods=['POST'])
