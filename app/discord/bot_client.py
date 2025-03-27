@@ -405,21 +405,35 @@ def get_bot_guilds(token):
         guilds = response.json()
         current_app.logger.info(f"成功获取到 {len(guilds)} 个服务器")
         
-        # 格式化返回结果
-        formatted_guilds = []
-        for guild in guilds:
-            formatted_guilds.append({
-                'id': guild.get('id'),
-                'name': guild.get('name')
-            })
-            
-        return formatted_guilds
-        
+        return guilds
     except Exception as e:
         import traceback
         current_app.logger.error(f"获取Discord服务器列表时发生异常: {str(e)}")
         current_app.logger.error(traceback.format_exc())
         return []
+
+def list_bot_guilds(token):
+    """列出机器人已加入的所有服务器，返回格式化的列表供调试使用
+    
+    Args:
+        token: Discord机器人令牌
+        
+    Returns:
+        list: 格式化的服务器信息列表，便于日志显示
+    """
+    from flask import current_app
+    
+    guilds = get_bot_guilds(token)
+    
+    formatted_guilds = []
+    for guild in guilds:
+        formatted_guilds.append({
+            'id': guild.get('id'),
+            'name': guild.get('name')
+        })
+    
+    current_app.logger.info(f"机器人已加入的服务器: {formatted_guilds}")
+    return formatted_guilds
 
 def get_guild_roles(token, guild_id):
     """获取Discord服务器的角色列表

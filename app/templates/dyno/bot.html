@@ -479,8 +479,6 @@
     });
 </script>
 
-{% endblock %}
-
 {% block scripts %}
 <script>
     let currentInputField;
@@ -671,31 +669,49 @@
             console.log('选择的频道ID:', selectedIds.join(','));
             
             if (currentInputField) {
-                // 更新输入字段值
-                currentInputField.value = selectedIds.join(',');
-                console.log('更新输入字段:', currentInputField.id, '值为:', currentInputField.value);
+                // 获取选中的频道ID列表
+                const channelIdList = Object.keys(selectedChannels);
                 
-                // 显示已选频道数量
-                const channelCount = selectedIds.length;
-                const countText = channelCount > 0 ? `已选择 ${channelCount} 个频道` : '所有频道';
-                
-                // 找到与输入字段相关的显示元素并更新
-                const displayElement = currentInputField.closest('.input-group').querySelector('.selected-channels-display');
-                if (displayElement) {
-                    displayElement.textContent = countText;
-                    console.log('更新显示元素:', countText);
-                } else {
-                    console.error('未找到显示元素');
+                // 检查是否选择了任何频道
+                if (channelIdList.length === 0) {
+                    alert('请至少选择一个频道');
+                    return;
                 }
-            } else {
-                console.error('未找到当前输入字段');
-            }
-            
-            // 隐藏模态框
-            const modalElement = document.getElementById('channelSelectModal');
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
+                
+                // 准备频道数据JSON字符串，包含完整的频道信息
+                const channelData = JSON.stringify(selectedChannels);
+                
+                // 设置隐藏字段的值 - 使用完整的频道数据
+                currentInputField.value = channelData;
+                
+                // 显示摘要信息
+                const channelCount = channelIdList.length;
+                const summaryElement = document.getElementById(currentInputField.id + '_summary');
+                
+                if (summaryElement) {
+                    let summary = `<strong>${channelCount}个频道已选择</strong>: `;
+                    const displayLimit = 3;
+                    const displayChannels = channelIdList.slice(0, displayLimit);
+                    
+                    // 创建显示的频道列表
+                    const channelNames = displayChannels.map(id => {
+                        const channel = selectedChannels[id];
+                        const icon = channel.type == 5 ? '<i class="fas fa-bullhorn"></i>' : '<i class="fas fa-hashtag"></i>';
+                        return `${icon} ${channel.name}`;
+                    });
+                    
+                    summary += channelNames.join(', ');
+                    
+                    // 如果有更多未显示的频道，添加提示
+                    if (channelCount > displayLimit) {
+                        summary += ` 和 ${channelCount - displayLimit} 个其他频道`;
+                    }
+                    
+                    summaryElement.innerHTML = summary;
+                }
+                
+                // 关闭模态框
+                bootstrap.Modal.getInstance(document.getElementById('channelSelectModal')).hide();
             }
         });
         
@@ -852,14 +868,32 @@
         
         // 为每个选中的频道创建标签
         selectedIds.forEach(channelId => {
-            // 查找频道名称
-            const checkbox = document.querySelector(`input[value="${channelId}"]`);
-            const channelName = checkbox ? checkbox.nextElementSibling.textContent : `#${channelId}`;
+            const channel = selectedChannels[channelId];
+            let channelName, icon;
+            
+            // 如果我们有完整的频道信息（新格式）
+            if (typeof channel === 'object' && channel.name) {
+                channelName = channel.name;
+                
+                // 根据频道类型选择图标
+                if (channel.type == 0) {
+                    icon = '<i class="fas fa-hashtag me-1"></i>';
+                } else if (channel.type == 5) {
+                    icon = '<i class="fas fa-bullhorn me-1"></i>';
+                } else {
+                    icon = '<i class="fas fa-hashtag me-1"></i>';
+                }
+            } else {
+                // 旧格式或紧急回退
+                const checkbox = document.querySelector(`input[value="${channelId}"]`);
+                channelName = checkbox ? checkbox.nextElementSibling.textContent : `频道-${channelId}`;
+                icon = '<i class="fas fa-hashtag me-1"></i>';
+            }
             
             // 创建标签
             const tag = document.createElement('span');
             tag.className = 'badge bg-secondary me-1 mb-1 selected-channel-tag';
-            tag.innerHTML = `${channelName} <i class="fas fa-times-circle remove-channel" data-channel-id="${channelId}"></i>`;
+            tag.innerHTML = `${icon}${channelName} <i class="fas fa-times-circle remove-channel" data-channel-id="${channelId}"></i>`;
             tagContainer.appendChild(tag);
         });
         
@@ -1085,6 +1119,11 @@
                     
                     // 添加该分类下的频道
                     category.channels.forEach(channel => {
+                        // 只显示文本频道(0)和公告频道(5)，不显示语音频道等其他类型
+                        if (channel.type !== 0 && channel.type !== 5) {
+                            return;
+                        }
+                        
                         const div = document.createElement('div');
                         div.className = 'form-check ms-3';
                         
@@ -1094,14 +1133,23 @@
                         input.id = `channel-${channel.id}`;
                         input.value = channel.id;
                         
+                        // 存储完整的频道信息，不仅仅是ID
+                        input.dataset.channelName = channel.name;
+                        input.dataset.channelType = channel.type;
+                        
                         // 检查是否已经被选中
                         input.checked = selectedChannels[channel.id] || false;
                         
                         // 添加变更事件
                         input.addEventListener('change', function() {
                             if (this.checked) {
-                                selectedChannels[this.value] = true;
-                                console.log('频道被选中:', this.value);
+                                // 存储完整的频道对象，而不仅仅是布尔值
+                                selectedChannels[this.value] = {
+                                    id: this.value,
+                                    name: this.dataset.channelName,
+                                    type: this.dataset.channelType
+                                };
+                                console.log('频道被选中:', this.value, this.dataset.channelName);
                             } else {
                                 delete selectedChannels[this.value];
                                 console.log('频道取消选中:', this.value);
@@ -1112,7 +1160,17 @@
                         const label = document.createElement('label');
                         label.className = 'form-check-label';
                         label.htmlFor = `channel-${channel.id}`;
-                        label.textContent = `#${channel.name}`;
+                        
+                        // 添加频道类型图标
+                        const icon = document.createElement('i');
+                        if (channel.type === 0) {
+                            icon.className = 'fas fa-hashtag me-1';
+                        } else if (channel.type === 5) {
+                            icon.className = 'fas fa-bullhorn me-1';
+                        }
+                        
+                        label.appendChild(icon);
+                        label.appendChild(document.createTextNode(channel.name));
                         
                         div.appendChild(input);
                         div.appendChild(label);

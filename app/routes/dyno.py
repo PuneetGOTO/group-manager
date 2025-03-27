@@ -272,6 +272,17 @@ def welcome(group_id):
             current_app.logger.info(f"使用机器人令牌获取频道列表，Guild ID: {group.discord_id}")
             guild_id = group.discord_id
             
+            # 记录当前使用的Guild ID，帮助调试
+            current_app.logger.info(f"使用的Discord服务器ID: {guild_id}")
+            
+            # 调试: 尝试列出机器人已加入的所有服务器
+            try:
+                from app.discord.bot_client import list_bot_guilds
+                bot_guilds = list_bot_guilds(bot.bot_token)
+                current_app.logger.info(f"机器人已加入的服务器列表: {bot_guilds}")
+            except Exception as e:
+                current_app.logger.warning(f"获取机器人已加入的服务器列表时出错: {str(e)}")
+            
             # 使用我们修复过的函数获取频道
             from app.discord.bot_client import get_guild_channels
             channels_data = get_guild_channels(bot.bot_token, guild_id)
@@ -890,14 +901,26 @@ def activate_bot():
     """激活Discord机器人"""
     group_id = request.form.get('group_id')
     bot_token = request.form.get('bot_token')
-    channel_ids = request.form.get('channel_ids', '')
+    channel_data = request.form.get('channel_ids', '')
     
     if not bot_token:
         flash('请提供机器人令牌', 'danger')
         return redirect(url_for('dyno.bot_dashboard'))
     
     # 记录用于调试
-    current_app.logger.info(f"正在激活机器人，群组ID: {group_id}, 频道ID: {channel_ids}")
+    current_app.logger.info(f"正在激活机器人，群组ID: {group_id}, 频道数据: {channel_data[:100]}...")
+    
+    # 处理频道数据 - 支持新的JSON格式和旧的逗号分隔格式
+    try:
+        # 尝试解析为JSON（新格式）
+        channel_info = json.loads(channel_data)
+        # 只提取ID用于机器人启动
+        channel_ids = ','.join(channel_info.keys())
+        current_app.logger.info(f"从JSON解析频道ID: {channel_ids}")
+    except (json.JSONDecodeError, AttributeError):
+        # 如果失败，假设为旧的逗号分隔格式
+        channel_ids = channel_data
+        current_app.logger.info(f"使用原始频道ID字符串: {channel_ids}")
     
     # 检查机器人令牌是否有效
     from app.discord.bot_client import get_bot_info

@@ -13,6 +13,8 @@ import argparse
 from dotenv import load_dotenv
 import colorama
 from colorama import Fore, Style
+import sqlite3
+import pathlib
 
 # 初始化彩色输出
 colorama.init()
@@ -144,6 +146,58 @@ def check_channel_permissions(token, guild_id):
         print_error(f"检查频道权限时出错: {str(e)}")
         return False
 
+def get_guilds_from_database():
+    """从数据库中获取可用的Discord服务器信息"""
+    try:
+        # 尝试找到数据库文件
+        db_paths = [
+            os.path.join(os.getcwd(), "app.db"),
+            os.path.join(os.getcwd(), "instance", "app.db"),
+            os.path.join(os.path.dirname(os.getcwd()), "app.db"),
+            os.path.join(os.path.dirname(os.getcwd()), "instance", "app.db")
+        ]
+        
+        db_path = None
+        for path in db_paths:
+            if os.path.exists(path):
+                db_path = path
+                break
+        
+        if not db_path:
+            print_warning("无法找到数据库文件，无法自动获取服务器信息")
+            return []
+        
+        # 连接数据库
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # 尝试获取群组信息
+        cursor.execute("SELECT id, name, discord_id FROM `group` WHERE discord_id IS NOT NULL AND discord_id != ''")
+        groups = cursor.fetchall()
+        
+        # 如果没有找到群组表，可能是因为表名不同
+        if not groups:
+            print_warning("在数据库中未找到群组信息")
+            return []
+        
+        guilds = []
+        for group in groups:
+            guilds.append({
+                "id": str(group[0]),
+                "name": group[1],
+                "discord_id": group[2]
+            })
+        
+        conn.close()
+        
+        if guilds:
+            print_success(f"从数据库中找到 {len(guilds)} 个Discord服务器")
+        
+        return guilds
+    except Exception as e:
+        print_error(f"从数据库获取服务器信息时出错: {str(e)}")
+        return []
+
 def main():
     """主函数"""
     # 设置命令行参数
@@ -159,12 +213,38 @@ def main():
     token = args.token or os.getenv("DISCORD_BOT_TOKEN")
     guild_id = args.guild or os.getenv("DISCORD_GUILD_ID")
     
+    # 如果从命令行和环境变量都没有获取到guild_id，尝试从数据库获取
+    if not guild_id:
+        print_info("正在尝试从数据库中获取Discord服务器信息...")
+        guilds = get_guilds_from_database()
+        
+        if guilds:
+            print_info("找到以下Discord服务器:")
+            for i, guild in enumerate(guilds):
+                print_info(f"{i+1}. {guild['name']} (ID: {guild['discord_id']})")
+            
+            # 自动选择第一个服务器
+            guild_id = guilds[0]['discord_id']
+            print_info(f"自动选择第一个服务器: {guilds[0]['name']} (ID: {guild_id})")
+        
     if not token:
         print_error("未提供机器人令牌。使用 --token 参数或在.env文件中设置DISCORD_BOT_TOKEN")
+        print_info("如何获取机器人令牌:")
+        print_info("1. 前往 https://discord.com/developers/applications")
+        print_info("2. 选择您的应用或创建一个新应用")
+        print_info("3. 在左侧菜单中选择'Bot'")
+        print_info("4. 点击'Reset Token'或复制已有令牌")
+        print_info("5. 将令牌添加到.env文件: DISCORD_BOT_TOKEN=您的令牌")
         return
     
     if not guild_id:
         print_error("未提供服务器ID。使用 --guild 参数或在.env文件中设置DISCORD_GUILD_ID")
+        print_info("如何获取服务器ID:")
+        print_info("1. 在Discord中启用开发者模式 (用户设置 → 高级 → 开发者模式)")
+        print_info("2. 右键点击服务器图标")
+        print_info("3. 选择'复制ID'")
+        print_info("4. 将ID添加到.env文件: DISCORD_GUILD_ID=您的服务器ID")
+        print_info("\n或直接使用参数运行: python bot_setup_check.py --guild 您的服务器ID")
         return
     
     # 执行检查
