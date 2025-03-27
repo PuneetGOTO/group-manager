@@ -356,6 +356,21 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <div class="input-group" style="max-width: 250px;">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="channelSearch" placeholder="搜索频道">
+                    </div>
+                    <div class="channel-actions d-none">
+                        <button type="button" class="btn btn-sm btn-outline-primary me-2" id="selectAllBtn">
+                            <i class="fas fa-check-square me-1"></i> 全选
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearSelectBtn">
+                            <i class="fas fa-square me-1"></i> 清除
+                        </button>
+                    </div>
+                </div>
+                
                 <div class="alert alert-info" id="channelLoadingMsg">正在加载频道列表...</div>
                 
                 <!-- 直接展示一些固定频道用于测试 -->
@@ -484,8 +499,15 @@
                 const channelContainer = document.getElementById('channelCheckboxes');
                 channelContainer.innerHTML = '<div class="alert alert-info">正在加载频道列表...</div>';
                 
-                // 强制显示频道操作按钮用于测试
-                document.querySelector('.channel-actions').style.display = 'flex';
+                try {
+                    const channelActions = document.querySelector('.channel-actions');
+                    if (channelActions) {
+                        channelActions.style.display = 'flex';
+                        channelActions.classList.remove('d-none');
+                    }
+                } catch(e) {
+                    console.log('无法找到channel-actions元素，这可能是正常的', e);
+                }
                 
                 // 手动添加一个测试频道以验证UI是否正常工作
                 channelContainer.innerHTML = '';
@@ -698,7 +720,15 @@
             
             // 清空频道容器
             channelContainer.innerHTML = '';
-            document.querySelector('.channel-actions').style.display = 'none';
+            try {
+                const channelActions = document.querySelector('.channel-actions');
+                if (channelActions) {
+                    channelActions.style.display = 'none';
+                    channelActions.classList.remove('d-none');
+                }
+            } catch(e) {
+                console.log('无法找到channel-actions元素，这可能是正常的', e);
+            }
             
             // 如果没有选择服务器，直接返回
             if (!guildId) {
@@ -789,18 +819,16 @@
                 channelName = channel.name;
                 
                 // 根据频道类型选择图标
-                if (channel.type == 0) {
-                    icon = '<i class="fas fa-hashtag me-1"></i>';
-                } else if (channel.type == 5) {
-                    icon = '<i class="fas fa-bullhorn me-1"></i>';
+                if (channel.type == 5) {
+                    icon = '<i class="fas fa-bullhorn"></i>';
                 } else {
-                    icon = '<i class="fas fa-hashtag me-1"></i>';
+                    icon = '<i class="fas fa-hashtag"></i>';
                 }
             } else {
                 // 旧格式或紧急回退
                 const checkbox = document.querySelector(`input[value="${channelId}"]`);
                 channelName = checkbox ? checkbox.nextElementSibling.textContent : `频道-${channelId}`;
-                icon = '<i class="fas fa-hashtag me-1"></i>';
+                icon = '<i class="fas fa-hashtag"></i>';
             }
             
             // 创建标签
@@ -955,7 +983,15 @@
         console.log('发送API请求到:', '/dyno/api/discord/channels');
         
         // 添加更多日志记录
-        document.querySelector('.channel-actions').style.display = 'none';
+        try {
+            const channelActions = document.querySelector('.channel-actions');
+            if (channelActions) {
+                channelActions.style.display = 'none';
+                channelActions.classList.remove('d-none');
+            }
+        } catch(e) {
+            console.log('无法找到channel-actions元素，这可能是正常的', e);
+        }
         
         fetch('/dyno/api/discord/channels', {
             method: 'POST',
@@ -998,12 +1034,28 @@
                             </ul>
                         </div>
                     `;
-                    document.querySelector('.channel-actions').style.display = 'none';
+                    try {
+                        const channelActions = document.querySelector('.channel-actions');
+                        if (channelActions) {
+                            channelActions.style.display = 'none';
+                            channelActions.classList.remove('d-none');
+                        }
+                    } catch(e) {
+                        console.log('无法找到channel-actions元素，这可能是正常的', e);
+                    }
                     return;
                 }
                 
                 // 显示频道操作按钮
-                document.querySelector('.channel-actions').style.display = 'flex';
+                try {
+                    const channelActions = document.querySelector('.channel-actions');
+                    if (channelActions) {
+                        channelActions.style.display = 'flex';
+                        channelActions.classList.remove('d-none');
+                    }
+                } catch(e) {
+                    console.log('无法找到channel-actions元素，这可能是正常的', e);
+                }
                 
                 // 创建频道分类结构
                 const channelsByCategory = {};
@@ -1099,13 +1151,29 @@
                 let errorMsg = data.error || '获取频道失败';
                 console.error('API错误:', errorMsg, '完整响应:', data);
                 channelContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>错误: ${errorMsg}</div>`;
-                document.querySelector('.channel-actions').style.display = 'none';
+                try {
+                    const channelActions = document.querySelector('.channel-actions');
+                    if (channelActions) {
+                        channelActions.style.display = 'none';
+                        channelActions.classList.remove('d-none');
+                    }
+                } catch(e) {
+                    console.log('无法找到channel-actions元素，这可能是正常的', e);
+                }
             }
         })
         .catch(error => {
             console.error('获取频道列表时出错:', error);
             channelContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${error.message || '获取频道列表时出错'}</div>`;
-            document.querySelector('.channel-actions').style.display = 'none';
+            try {
+                const channelActions = document.querySelector('.channel-actions');
+                if (channelActions) {
+                    channelActions.style.display = 'none';
+                    channelActions.classList.remove('d-none');
+                }
+            } catch(e) {
+                console.log('无法找到channel-actions元素，这可能是正常的', e);
+            }
         });
     }
     
@@ -1273,8 +1341,15 @@
                 const channelContainer = document.getElementById('channelCheckboxes');
                 channelContainer.innerHTML = '<div class="alert alert-info">正在加载频道列表...</div>';
                 
-                // 强制显示频道操作按钮用于测试
-                document.querySelector('.channel-actions').style.display = 'flex';
+                try {
+                    const channelActions = document.querySelector('.channel-actions');
+                    if (channelActions) {
+                        channelActions.style.display = 'flex';
+                        channelActions.classList.remove('d-none');
+                    }
+                } catch(e) {
+                    console.log('无法找到channel-actions元素，这可能是正常的', e);
+                }
                 
                 // 手动添加一个测试频道以验证UI是否正常工作
                 channelContainer.innerHTML = '';
@@ -1485,7 +1560,15 @@
             
             // 清空频道容器
             channelContainer.innerHTML = '';
-            document.querySelector('.channel-actions').style.display = 'none';
+            try {
+                const channelActions = document.querySelector('.channel-actions');
+                if (channelActions) {
+                    channelActions.style.display = 'none';
+                    channelActions.classList.remove('d-none');
+                }
+            } catch(e) {
+                console.log('无法找到channel-actions元素，这可能是正常的', e);
+            }
             
             // 如果没有选择服务器，直接返回
             if (!guildId) {
