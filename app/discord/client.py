@@ -29,8 +29,8 @@ class DiscordClient:
         # 正确编码scope列表，使用配置文件中定义的作用域
         scope = urllib.parse.quote(' '.join(DISCORD_SCOPES))
         
-        # 构建基本授权URL
-        auth_url = f"https://discord.com/api/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code&integration_type=0"
+        # 构建基本授权URL - 使用discord.com而不是discord.com/api
+        auth_url = f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&scope={scope}&permissions={permissions}&response_type=code&integration_type=0"
         
         # 添加重定向URI (确保已URL编码)
         auth_url += f"&redirect_uri={urllib.parse.quote(DISCORD_REDIRECT_URI)}"
