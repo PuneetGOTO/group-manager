@@ -397,7 +397,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="activateBotForm" action="{{ url_for('dyno.activate_bot', group_id=group.id) }}" method="post">
+                <form id="activateBotForm" action="{{ url_for('dyno.activate_bot') }}" method="post">
                     <!-- 表单内容 -->
                     <div class="mb-3">
                         <label for="bot_token" class="form-label">Discord机器人令牌</label>
@@ -430,7 +430,7 @@
                                 <p class="text-muted">请先输入令牌并选择服务器</p>
                             </div>
                         </div>
-                        <input type="hidden" name="channels" id="selectedChannelsInput">
+                        <input type="hidden" name="channels" id="selectedChannelsInput" value="">
                         <small class="form-text text-muted">选择机器人应监听的频道</small>
                     </div>
 
@@ -457,24 +457,7 @@
         let currentInputField;
         let selectedChannels = {};
         
-        // 确保模态框元素存在
-        const channelSelectModal = document.getElementById('channelSelectModal');
-        if (!channelSelectModal) {
-            console.error('找不到频道选择模态框元素!');
-            return;
-        }
-        
-        // 初始化Bootstrap模态框
-        let bsChannelSelectModal;
-        try {
-            bsChannelSelectModal = new bootstrap.Modal(channelSelectModal);
-            console.log('成功初始化模态框');
-        } catch (error) {
-            console.error('初始化模态框失败:', error);
-            return;
-        }
-        
-        // 确保页面加载后绑定所有按钮事件
+        // 初始化按钮处理函数
         function initButtonHandlers() {
             // 为所有频道选择按钮添加点击事件
             document.querySelectorAll('.select-channels-btn').forEach(button => {
@@ -636,6 +619,21 @@
                 
                 // 设置隐藏字段的值 - 使用完整的频道数据
                 currentInputField.value = channelData;
+                
+                // 同时更新selectedChannelsInput（如果存在）
+                const selectedChannelsInput = document.getElementById('selectedChannelsInput');
+                if (selectedChannelsInput) {
+                    // 创建频道对象数组以适应后端处理
+                    const channelsArray = channelIdList.map(id => {
+                        return {
+                            id: id,
+                            name: selectedChannels[id].name,
+                            type: selectedChannels[id].type
+                        };
+                    });
+                    selectedChannelsInput.value = JSON.stringify(channelsArray);
+                    console.log('更新selectedChannelsInput，数据长度:', selectedChannelsInput.value.length);
+                }
                 
                 // 显示摘要信息
                 const channelCount = channelIdList.length;
@@ -1941,6 +1939,21 @@
                 
                 // 设置隐藏字段的值 - 使用完整的频道数据
                 currentInputField.value = channelData;
+                
+                // 同时更新selectedChannelsInput（如果存在）
+                const selectedChannelsInput = document.getElementById('selectedChannelsInput');
+                if (selectedChannelsInput) {
+                    // 创建频道对象数组以适应后端处理
+                    const channelsArray = channelIdList.map(id => {
+                        return {
+                            id: id,
+                            name: selectedChannels[id].name,
+                            type: selectedChannels[id].type
+                        };
+                    });
+                    selectedChannelsInput.value = JSON.stringify(channelsArray);
+                    console.log('更新selectedChannelsInput，数据长度:', selectedChannelsInput.value.length);
+                }
                 
                 // 显示摘要信息
                 const channelCount = channelIdList.length;

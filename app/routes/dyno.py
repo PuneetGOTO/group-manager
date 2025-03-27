@@ -903,27 +903,46 @@ def activate_bot():
     group_id = request.form.get('group_id')
     bot_token = request.form.get('bot_token')
     channel_data = request.form.get('channel_ids', '')
+    selected_channels = request.form.get('selectedChannelsInput', '')
     
-    current_app.logger.info(f"激活机器人，bot_id: {bot_id}, 群组ID: {group_id}, 频道数据: {channel_data[:100]}...")
+    current_app.logger.info(f"激活机器人，bot_id: {bot_id}, 群组ID: {group_id}, 频道数据长度: {len(channel_data) if channel_data else 0}")
     
     if not bot_token:
         flash('请提供机器人令牌', 'danger')
         return redirect(url_for('dyno.bot_dashboard'))
     
     # 记录用于调试
-    current_app.logger.info(f"正在激活机器人，bot_id: {bot_id}, 群组ID: {group_id}, 频道数据: {channel_data[:100]}...")
+    current_app.logger.info(f"正在激活机器人，bot_id: {bot_id}, 群组ID: {group_id}, 频道数据类型: {type(channel_data).__name__}, 选中频道数据类型: {type(selected_channels).__name__}")
     
-    # 处理频道数据 - 支持新的JSON格式和旧的逗号分隔格式
-    try:
-        # 尝试解析为JSON（新格式）
-        channel_info = json.loads(channel_data)
-        # 只提取ID用于机器人启动
-        channel_ids = ','.join(channel_info.keys())
-        current_app.logger.info(f"从JSON解析频道ID: {channel_ids}")
-    except (json.JSONDecodeError, AttributeError):
-        # 如果失败，假设为旧的逗号分隔格式
-        channel_ids = channel_data
-        current_app.logger.info(f"使用原始频道ID字符串: {channel_ids}")
+    # 处理频道数据 - 首先尝试使用selectedChannelsInput
+    channel_ids = ''
+    if selected_channels:
+        try:
+            # 尝试解析选中的频道数据
+            channels_list = json.loads(selected_channels)
+            # 提取ID用于机器人启动
+            channel_ids = ','.join([ch['id'] for ch in channels_list if 'id' in ch])
+            current_app.logger.info(f"从selectedChannelsInput解析到{len(channels_list)}个频道")
+        except (json.JSONDecodeError, TypeError) as e:
+            current_app.logger.error(f"解析selectedChannelsInput出错: {str(e)}")
+            # 失败后回退到channel_data
+            channel_ids = channel_data
+    else:
+        # 如果没有selectedChannelsInput，尝试解析channel_data
+        try:
+            # 尝试解析为JSON（新格式）
+            channel_info = json.loads(channel_data)
+            if isinstance(channel_info, dict):
+                # 只提取ID用于机器人启动
+                channel_ids = ','.join(channel_info.keys())
+            elif isinstance(channel_info, list):
+                # 列表格式
+                channel_ids = ','.join([ch['id'] for ch in channel_info if 'id' in ch])
+            current_app.logger.info(f"从channel_data解析频道ID: {channel_ids}")
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            # 如果失败，假设为旧的逗号分隔格式
+            channel_ids = channel_data
+            current_app.logger.info(f"使用原始频道ID字符串: {channel_ids}")
     
     # 检查机器人令牌是否有效
     from app.discord.bot_client import get_bot_info
@@ -941,7 +960,7 @@ def activate_bot():
             existing_bot = DiscordBot.query.filter_by(id=bot_id).first()
             if existing_bot:
                 # 验证权限
-                if existing_bot.group_id and str(existing_bot.group_id) != str(group_id):
+                if existing_bot.group_id and str(existing_bot.group_id) != str(group_id) and group_id is not None:
                     current_app.logger.warning(f"尝试更新不匹配的群组ID: 机器人群组 {existing_bot.group_id}, 请求群组 {group_id}")
                     group = Group.query.get(existing_bot.group_id)
                     if not group or (not current_user.is_admin and current_user.id != group.owner_id):
@@ -1195,6 +1214,10 @@ def get_discord_channels_api():
         current_app.logger.error("获取Discord频道列表：缺少令牌或服务器ID")
         return jsonify({'success': False, 'error': '缺少令牌或服务器ID'})
     
+    # 确保令牌不包含"Bot "前缀，因为我们会在API调用中添加
+    if token.startswith('Bot '):
+        token = token[4:]
+        
     current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌前5位: {token[:5]}...")
     
     try:
@@ -1275,15 +1298,17 @@ def get_discord_guilds():
     if not token:
         return jsonify({'success': False, 'error': '缺少机器人令牌'})
     
-    # 确保令牌不包含"Bot "前缀，因为我们会在API调用中添加
-    if token.startswith('Bot '):
-        token = token[4:]
-        
+    # 确保令牌格式和内容正确（移除可能的引号和空格）
+    token = token.strip('\'"')
+    
+    # 我们在bot_client.py中已经处理了Bot前缀添加，这里不需要再处理
+    
+    current_app.logger.info(f"处理后的令牌前10位: {token[:10]}...")
     current_app.logger.info(f"请求Discord服务器列表，令牌前5位: {token[:5]}...")
     
     try:
-        from app.discord.bot_client import get_bot_guilds
-        print(f"正在尝试获取Discord服务器列表，令牌: {token[:5]}...")
+        # 从Discord API获取服务器列表
+        current_app.logger.info("调用get_bot_guilds获取服务器...")
         guilds = get_bot_guilds(token)
         print(f"获取到 {len(guilds)} 个服务器")
         
@@ -1344,8 +1369,11 @@ def check_bot_status_api():
             'message': error if error else '机器人状态已更新'
         })
     except Exception as e:
-        current_app.logger.error(f"API检查机器人状态时出错: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({
+            'success': False, 
+            'status': 'error',
+            'message': f'检查机器人状态时发生错误: {str(e)}'
+        })
 
 @dyno_bp.route('/api/bot/info', methods=['POST'])
 @login_required
