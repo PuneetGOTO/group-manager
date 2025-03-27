@@ -11,13 +11,10 @@ DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 # 8代表管理员权限（Administrator）
 DISCORD_BOT_PERMISSIONS = "8"
 
-# OAuth授权范围 - 使用已验证的有效作用域
+# OAuth授权范围 - 只使用已验证的有效作用域
 DISCORD_SCOPES = [
     'identify',                 # 获取用户信息
-    'email',                    # 获取用户邮箱
     'guilds',                   # 获取用户所在的服务器列表
-    'guilds.members.read',      # 读取服务器成员信息
-    'guilds.channels.read',     # 读取服务器频道信息
     'bot',                      # 添加机器人到服务器
     'applications.commands'     # 允许应用程序命令
 ]
