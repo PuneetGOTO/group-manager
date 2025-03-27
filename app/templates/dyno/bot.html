@@ -87,6 +87,7 @@
                     
                     <form action="{{ url_for('dyno.activate_bot') }}" method="post" class="mb-3">
                         <input type="hidden" name="bot_id" value="{{ global_bot.id }}">
+                        <input type="hidden" name="group_id" value="{{ global_bot.group_id }}">
                         <div class="mb-3">
                             <label class="form-label">机器人令牌</label>
                             <div class="input-group">
@@ -213,6 +214,7 @@
                             
                             <form action="{{ url_for('dyno.activate_bot') }}" method="post" class="mb-3">
                                 <input type="hidden" name="bot_id" value="{{ bot.id }}">
+                                <input type="hidden" name="group_id" value="{{ bot.group_id }}">
                                 <div class="mb-3">
                                     <label class="form-label">机器人令牌</label>
                                     <div class="input-group">
@@ -394,7 +396,8 @@
         // 全局变量
         let currentInputField;
         let selectedChannels = {};
-        const channelSelectModal = new bootstrap.Modal(document.getElementById('channelSelectModal'));
+        const channelSelectModal = document.getElementById('channelSelectModal');
+        const bsChannelSelectModal = new bootstrap.Modal(channelSelectModal);
         
         // 初始化显示已选频道数量
         document.querySelectorAll('input[name="channel_ids"]').forEach(input => {
@@ -522,7 +525,9 @@
                 // 获取服务器列表
                 fetchDiscordGuilds(token);
                 
-                channelSelectModal.show();
+                // 确保模态框显示
+                bsChannelSelectModal.show();
+                console.log('模态框应该已显示');
             });
         });
         
@@ -619,7 +624,7 @@
                 }
                 
                 // 关闭模态框
-                bootstrap.Modal.getInstance(document.getElementById('channelSelectModal')).hide();
+                bsChannelSelectModal.hide();
             }
         });
         

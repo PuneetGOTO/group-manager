@@ -899,16 +899,19 @@ def check_bot_status(bot_id):
 @login_required
 def activate_bot():
     """激活Discord机器人"""
+    bot_id = request.form.get('bot_id')
     group_id = request.form.get('group_id')
     bot_token = request.form.get('bot_token')
     channel_data = request.form.get('channel_ids', '')
+    
+    current_app.logger.info(f"激活机器人，bot_id: {bot_id}, 群组ID: {group_id}, 频道数据: {channel_data[:100]}...")
     
     if not bot_token:
         flash('请提供机器人令牌', 'danger')
         return redirect(url_for('dyno.bot_dashboard'))
     
     # 记录用于调试
-    current_app.logger.info(f"正在激活机器人，群组ID: {group_id}, 频道数据: {channel_data[:100]}...")
+    current_app.logger.info(f"正在激活机器人，bot_id: {bot_id}, 群组ID: {group_id}, 频道数据: {channel_data[:100]}...")
     
     # 处理频道数据 - 支持新的JSON格式和旧的逗号分隔格式
     try:
@@ -929,6 +932,52 @@ def activate_bot():
     if not bot_info:
         flash('无效的机器人令牌', 'danger')
         return redirect(url_for('dyno.bot_dashboard'))
+    
+    # 如果提供了bot_id，直接更新该机器人
+    if bot_id:
+        try:
+            bot_id = int(bot_id)
+            existing_bot = DiscordBot.query.get(bot_id)
+            if existing_bot:
+                # 验证权限
+                if existing_bot.group_id and existing_bot.group_id != current_user.id:
+                    group = Group.query.get(existing_bot.group_id)
+                    if not group or (not current_user.is_admin and current_user.id != group.owner_id):
+                        flash('您没有权限管理此机器人', 'danger')
+                        return redirect(url_for('dyno.bot_dashboard'))
+                elif not existing_bot.group_id and not current_user.is_admin:
+                    flash('只有管理员可以管理全局机器人', 'danger')
+                    return redirect(url_for('dyno.bot_dashboard'))
+                
+                # 更新机器人信息
+                if bot_token:  # 只有当提供了新令牌时才更新
+                    existing_bot.bot_token = bot_token
+                    existing_bot.bot_name = bot_info.get('username', '未知机器人')
+                existing_bot.status = 'online'
+                existing_bot.channel_ids = channel_ids
+                existing_bot.last_activated = datetime.now()
+                existing_bot.activated_by = current_user.id
+                
+                db.session.commit()
+                flash(f'机器人 {existing_bot.bot_name} 已成功激活', 'success')
+                
+                # 记录系统事件
+                event = SystemEvent(
+                    event_type='bot_activated',
+                    user_id=current_user.id,
+                    details=json.dumps({
+                        'bot_id': existing_bot.id,
+                        'bot_name': existing_bot.bot_name,
+                        'group_id': existing_bot.group_id
+                    })
+                )
+                db.session.add(event)
+                db.session.commit()
+                
+                return redirect(url_for('dyno.bot_dashboard'))
+        except (ValueError, TypeError):
+            current_app.logger.error(f"处理bot_id时出错: {bot_id}")
+            # 继续执行常规流程
     
     # 根据群组ID处理不同类型的机器人
     if group_id == 'global':
