@@ -183,21 +183,27 @@ def stop_bot_process():
     global DISCORD_BOT_PROCESS
     
     try:
+        has_stopped = False
+        
         # 首先尝试使用全局变量中的进程
         if DISCORD_BOT_PROCESS:
             logger.info(f"正在停止Discord机器人进程 (PID: {DISCORD_BOT_PROCESS.pid})...")
             
-            if os.name == 'nt':
-                # Windows上使用taskkill来终止进程树
-                subprocess.call(['taskkill', '/F', '/T', '/PID', str(DISCORD_BOT_PROCESS.pid)])
-            else:
-                # Unix/Linux上使用kill命令
-                os.kill(DISCORD_BOT_PROCESS.pid, signal.SIGTERM)
-                
-            DISCORD_BOT_PROCESS = None
-            logger.info("Discord机器人进程已停止")
-            return True
-            
+            try:
+                if os.name == 'nt':
+                    # Windows上使用taskkill来终止进程树
+                    subprocess.call(['taskkill', '/F', '/T', '/PID', str(DISCORD_BOT_PROCESS.pid)])
+                else:
+                    # Unix/Linux上使用kill命令
+                    os.kill(DISCORD_BOT_PROCESS.pid, signal.SIGTERM)
+                    
+                DISCORD_BOT_PROCESS = None
+                logger.info("Discord机器人进程已停止")
+                has_stopped = True
+            except Exception as process_err:
+                logger.error(f"停止进程时出错: {str(process_err)}")
+                # 继续尝试其他方法
+        
         # 如果全局变量中没有进程，尝试从PID文件中获取
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         pid_file = os.path.join(base_dir, 'discord_bot.pid')
@@ -218,15 +224,52 @@ def stop_bot_process():
                     # 删除PID文件
                     os.remove(pid_file)
                     logger.info("Discord机器人进程已停止")
-                    return True
-                except (ValueError, ProcessLookupError):
+                    has_stopped = True
+                except (ValueError, ProcessLookupError) as e:
                     # 无效的PID或者进程已经不存在
+                    logger.warning(f"PID文件中的进程ID无效或不存在: {str(e)}")
                     if os.path.exists(pid_file):
                         os.remove(pid_file)
-                    logger.warning("找不到运行中的Discord机器人进程")
         
-        logger.warning("没有找到运行中的Discord机器人进程")
-        return False
+        # 在Docker环境中，尝试使用ps和kill命令直接终止bot进程
+        if not has_stopped and os.name != 'nt':  # 仅在Unix/Linux系统上尝试
+            try:
+                # 查找Discord bot进程
+                logger.info("尝试查找并终止Discord机器人进程...")
+                bot_processes = subprocess.check_output(["ps", "aux"]).decode()
+                
+                # 寻找python进程中运行bot.py的实例
+                for line in bot_processes.split('\n'):
+                    if 'python' in line and 'discord_bot.py' in line:
+                        parts = line.split()
+                        if len(parts) > 1:
+                            try:
+                                process_pid = int(parts[1])
+                                logger.info(f"找到可能的Discord机器人进程 PID: {process_pid}")
+                                os.kill(process_pid, signal.SIGTERM)
+                                logger.info(f"已终止进程 PID: {process_pid}")
+                                has_stopped = True
+                            except Exception as kill_err:
+                                logger.error(f"终止进程时出错: {str(kill_err)}")
+            except Exception as find_err:
+                logger.error(f"查找Discord进程时出错: {str(find_err)}")
+        
+        # 无论成功与否，都更新数据库中所有机器人状态为离线
+        try:
+            from app.models import DiscordBot
+            from app import db
+            active_bots = DiscordBot.query.filter_by(is_active=True).all()
+            for bot in active_bots:
+                bot.is_active = False
+                bot.status = 'offline'
+            db.session.commit()
+            logger.info(f"已将所有机器人状态更新为离线，数量: {len(active_bots)}")
+            # 至少数据库状态已更新
+            return True
+        except Exception as db_err:
+            logger.error(f"更新数据库机器人状态时出错: {str(db_err)}")
+        
+        return has_stopped
             
     except Exception as e:
         logger.error(f"停止Discord机器人进程时出错: {str(e)}")
