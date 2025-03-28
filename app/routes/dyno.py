@@ -1375,3 +1375,136 @@ def get_bot_info_api():
     except Exception as e:
         current_app.logger.error(f"API获取机器人信息时出错: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
+
+# 添加专用的机器人API路由以避免路由冲突
+@dyno_bp.route('/api/v1/discord/guilds', methods=['POST'])
+@login_required
+def get_discord_guilds_v1():
+    """获取机器人所在的Discord服务器列表，专用API路由"""
+    try:
+        print("=== 调用专用API: /api/v1/discord/guilds ===")
+        # 支持JSON和表单数据
+        if request.is_json:
+            data = request.get_json()
+            token = data.get('token', '')
+        else:
+            token = request.form.get('token', '')
+        
+        token = token.strip('\'"')
+        
+        if not token:
+            print("错误: 缺少机器人令牌")
+            return jsonify({'success': False, 'error': '缺少机器人令牌'})
+        
+        print(f"令牌长度: {len(token)}")
+        print(f"令牌前5位: {token[:5]}...")
+        
+        # 从Discord API获取服务器列表
+        from app.discord.bot_client import get_bot_guilds
+        guilds = get_bot_guilds(token)
+        
+        print(f"获取到 {len(guilds)} 个服务器")
+        return jsonify({
+            'success': True, 
+            'guilds': guilds
+        })
+    except Exception as e:
+        import traceback
+        print(f"获取Discord服务器列表时出错: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)})
+
+@dyno_bp.route('/api/v1/discord/channels', methods=['POST'])
+@login_required
+def get_discord_channels_v1():
+    """获取指定服务器的Discord频道列表，专用API路由"""
+    try:
+        print("=== 调用专用API: /api/v1/discord/channels ===")
+        # 支持JSON和表单数据
+        if request.is_json:
+            data = request.get_json()
+            token = data.get('token', '')
+            guild_id = data.get('guild_id', '')
+        else:
+            token = request.form.get('token', '')
+            guild_id = request.form.get('guild_id', '')
+        
+        token = token.strip('\'"')
+        
+        if not token:
+            print("错误: 缺少机器人令牌")
+            return jsonify({'success': False, 'error': '缺少机器人令牌'})
+            
+        if not guild_id:
+            print("错误: 缺少服务器ID")
+            return jsonify({'success': False, 'error': '缺少服务器ID'})
+        
+        print(f"令牌长度: {len(token)}")
+        print(f"令牌前5位: {token[:5]}...")
+        print(f"服务器ID: {guild_id}")
+        
+        # 从Discord API获取频道列表
+        from app.discord.bot_client import get_guild_channels
+        channels = get_guild_channels(token, guild_id)
+        
+        print(f"获取到 {len(channels)} 个频道")
+        return jsonify({
+            'success': True, 
+            'channels': channels
+        })
+    except Exception as e:
+        import traceback
+        print(f"获取Discord频道列表时出错: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)})
+
+# 添加专用的机器人信息API路由
+@dyno_bp.route('/api/v1/bot/info', methods=['POST'])
+@login_required
+def get_bot_info_v1():
+    """获取机器人信息，专用API路由"""
+    try:
+        print("=== 调用专用API: /api/v1/bot/info ===")
+        # 支持JSON和表单数据
+        if request.is_json:
+            data = request.get_json()
+            bot_id = data.get('bot_id', '')
+        else:
+            bot_id = request.form.get('bot_id', '')
+        
+        if not bot_id:
+            print("错误: 缺少机器人ID")
+            return jsonify({'success': False, 'error': '缺少机器人ID'})
+        
+        print(f"机器人ID: {bot_id}")
+        
+        # 从数据库获取机器人信息
+        from app.models import DiscordBot
+        bot = DiscordBot.query.filter_by(id=bot_id).first()
+        
+        if not bot:
+            print(f"错误: 未找到ID为 {bot_id} 的机器人")
+            return jsonify({'success': False, 'error': f"未找到ID为 {bot_id} 的机器人"})
+        
+        # 返回机器人信息
+        bot_info = {
+            'id': bot.id,
+            'name': bot.bot_name or "未命名机器人",
+            'token': bot.bot_token[:10] + '...' if bot.bot_token else None,
+            'status': bot.status,
+            'created_at': bot.created_at.strftime('%Y-%m-%d %H:%M:%S') if bot.created_at else None,
+            'activated_at': bot.activated_at.strftime('%Y-%m-%d %H:%M:%S') if bot.activated_at else None
+        }
+        
+        print(f"成功获取机器人信息: {bot.bot_name}")
+        return jsonify({
+            'success': True,
+            'name': bot.bot_name or "未命名机器人",
+            'status': bot.status,
+            'bot_info': bot_info
+        })
+    except Exception as e:
+        import traceback
+        print(f"获取机器人信息时出错: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)})
