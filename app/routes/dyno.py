@@ -1127,6 +1127,8 @@ def start_discord_bot(bot_token, channel_ids):
 
 # Discord频道API路由
 @dyno_bp.route('/api/discord/channels', methods=['POST'])
+@dyno_bp.route('/api/channels', methods=['POST'])  # 添加兼容路由
+@login_required
 def get_discord_channels_api():
     """获取指定服务器的Discord频道列表，用于AJAX请求"""
     token = request.form.get('token')
@@ -1229,6 +1231,7 @@ def get_discord_channels_api():
 
 # Discord服务器API路由
 @dyno_bp.route('/api/discord/guilds', methods=['POST'])
+@dyno_bp.route('/api/guilds', methods=['POST'])  # 添加兼容路由
 @login_required
 def get_discord_guilds():
     """获取机器人所在的Discord服务器列表，用于AJAX请求"""
