@@ -857,13 +857,16 @@
                     const channelContainer = document.getElementById('channelCheckboxes');
                     channelContainer.innerHTML = `
                         <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>未找到服务器。</strong> 可能原因：
-                            <ul class="mb-0 mt-1">
-                                <li>机器人未被邀请到任何服务器</li>
-                                <li>机器人令牌无效</li>
-                                <li>机器人没有足够的权限</li>
+                            <i class="fas fa-info-circle me-2"></i> 没有可用的文本频道或机器人没有权限查看频道
+                        </div>
+                        <div class="mt-2">
+                            <p>请确保机器人有以下权限:</p>
+                            <ul>
+                                <li>查看频道 (View Channels)</li>
+                                <li>发送消息 (Send Messages)</li>
+                                <li>读取消息历史 (Read Message History)</li>
                             </ul>
+                            <p>或者输入正确的服务器ID</p>
                         </div>
                     `;
                     return;
@@ -901,8 +904,7 @@
                 const channelContainer = document.getElementById('channelCheckboxes');
                 channelContainer.innerHTML = `
                     <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>获取服务器失败:</strong> ${errorMsg}
+                        <i class="fas fa-exclamation-triangle me-2"></i> 获取服务器失败: ${data.error || '未知错误'}
                     </div>
                 `;
                 console.error('API错误:', errorMsg);
@@ -914,8 +916,7 @@
             const channelContainer = document.getElementById('channelCheckboxes');
             channelContainer.innerHTML = `
                 <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>错误:</strong> ${error.message || '获取服务器列表时出错'}
+                    <i class="fas fa-exclamation-triangle me-2"></i> ${error.message || '获取服务器列表时出错'}
                 </div>
                 <div class="mt-3">
                     <p><strong>请确保:</strong></p>
@@ -942,8 +943,8 @@
         token = token.trim();
         
         // 通过后端获取频道列表
-        console.log('发送API请求到:', '/dyno/api/discord/channels');
-        fetch('/dyno/api/discord/channels', {
+        console.log('发送API请求到:', '/api/discord/channels');
+        fetch('/api/discord/channels', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -1127,9 +1128,10 @@
                     const channelActions = document.querySelector('.channel-actions');
                     if (channelActions) {
                         channelActions.style.display = 'none';
+                        channelActions.classList.remove('d-none');
                     }
                 } catch(e) {
-                    console.log('无法找到channel-actions元素', e);
+                    console.log('无法找到channel-actions元素，这可能是正常的', e);
                 }
                 
                 // 显示模态框
@@ -1156,7 +1158,7 @@
                             channelActions.style.display = 'none';
                         }
                     } catch(e) {
-                        console.log('无法找到channel-actions元素', e);
+                        console.log('无法找到channel-actions元素，这可能是正常的', e);
                     }
                 }
             });
@@ -1401,13 +1403,16 @@
                     const channelContainer = document.getElementById('channelCheckboxes');
                     channelContainer.innerHTML = `
                         <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>未找到服务器。</strong> 可能原因：
-                            <ul class="mb-0 mt-1">
-                                <li>机器人未被邀请到任何服务器</li>
-                                <li>机器人令牌无效</li>
-                                <li>机器人没有足够的权限</li>
+                            <i class="fas fa-info-circle me-2"></i> 没有可用的文本频道或机器人没有权限查看频道
+                        </div>
+                        <div class="mt-2">
+                            <p>请确保机器人有以下权限:</p>
+                            <ul>
+                                <li>查看频道 (View Channels)</li>
+                                <li>发送消息 (Send Messages)</li>
+                                <li>读取消息历史 (Read Message History)</li>
                             </ul>
+                            <p>或者输入正确的服务器ID</p>
                         </div>
                     `;
                     return;
@@ -1445,8 +1450,7 @@
                 const channelContainer = document.getElementById('channelCheckboxes');
                 channelContainer.innerHTML = `
                     <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>获取服务器失败:</strong> ${errorMsg}
+                        <i class="fas fa-exclamation-triangle me-2"></i> 获取服务器失败: ${data.error || '未知错误'}
                     </div>
                 `;
                 console.error('API错误:', errorMsg);
@@ -1458,8 +1462,7 @@
             const channelContainer = document.getElementById('channelCheckboxes');
             channelContainer.innerHTML = `
                 <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>错误:</strong> ${error.message || '获取服务器列表时出错'}
+                    <i class="fas fa-exclamation-triangle me-2"></i> ${error.message || '获取服务器列表时出错'}
                 </div>
                 <div class="mt-3">
                     <p><strong>请确保:</strong></p>
@@ -1486,8 +1489,8 @@
         token = token.trim();
         
         // 通过后端获取频道列表
-        console.log('发送API请求到:', '/dyno/api/discord/channels');
-        fetch('/dyno/api/discord/channels', {
+        console.log('发送API请求到:', '/api/discord/channels');
+        fetch('/api/discord/channels', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
