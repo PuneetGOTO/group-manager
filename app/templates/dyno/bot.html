@@ -398,6 +398,8 @@
     let channelSelectModal; // 全局模态框变量
     
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM加载完成，初始化所有功能');
+        
         // 获取模态框对象
         channelSelectModal = new bootstrap.Modal(document.getElementById('channelSelectModal'));
         
@@ -409,7 +411,7 @@
         
         // 频道选择按钮点击事件
         document.querySelectorAll('.select-channels-btn').forEach(button => {
-            console.log('给频道选择按钮添加事件监听器');
+            console.log('给频道选择按钮添加事件监听器:', button);
             button.addEventListener('click', function(e) {
                 console.log('频道选择按钮被点击');
                 e.preventDefault();
@@ -420,6 +422,9 @@
                 // 获取机器人ID和目标输入字段
                 const botId = this.getAttribute('data-bot-id');
                 const targetField = this.getAttribute('data-target');
+                
+                console.log('选择频道, botId:', botId, '目标字段:', targetField);
+                
                 currentInputField = document.getElementById(targetField);
                 
                 if (!currentInputField) {
@@ -428,10 +433,13 @@
                 }
                 
                 // 获取当前机器人的令牌
-                const tokenInput = document.querySelector(`input[name="bot_token"][id="bot_token_${botId}"]`) || 
-                                  document.querySelector(`input[name="bot_token"][data-bot-id="${botId}"]`);
+                let tokenInput = document.querySelector(`input[name="bot_token"][id="bot_token_${botId}"]`); 
                 if (!tokenInput) {
-                    console.error('找不到机器人令牌输入字段', botId);
+                    tokenInput = document.querySelector(`input[name="bot_token"][data-bot-id="${botId}"]`);
+                }
+                
+                if (!tokenInput) {
+                    console.error('找不到机器人令牌输入字段, botId:', botId);
                     alert('找不到机器人令牌输入字段');
                     return;
                 }
@@ -653,6 +661,28 @@
             
             // 获取频道列表
             fetchDiscordChannels(guildId, token);
+        });
+        
+        // 切换密码可见性
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentElement.querySelector('input');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                } else {
+                    input.type = 'password';
+                    this.innerHTML = '<i class="fas fa-eye"></i>';
+                }
+            });
+        });
+        
+        // 加载在线机器人信息
+        document.querySelectorAll('.bot-info-container').forEach(container => {
+            const botId = container.getAttribute('data-bot-id');
+            if (botId) {
+                loadBotInfo(botId);
+            }
         });
     });
     

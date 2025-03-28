@@ -1315,12 +1315,20 @@ def check_bot_status_api():
         })
 
 @dyno_bp.route('/api/bot/info', methods=['POST'])
+@dyno_bp.route('/api/dyno/bot-info', methods=['POST'])  # 添加兼容的路由
 @login_required
 def get_bot_info_api():
     """获取Discord机器人信息，用于AJAX请求"""
-    bot_id = request.form.get('bot_id')
+    data = request.get_json() or {}
+    form_data = request.form
+    
+    # 兼容多种请求格式
+    bot_id = data.get('bot_id') or form_data.get('bot_id')
+    
+    current_app.logger.info(f"获取机器人信息API被调用, bot_id: {bot_id}, 数据类型: {type(data)}")
     
     if not bot_id:
+        current_app.logger.error("获取机器人信息API错误: 缺少机器人ID")
         return jsonify({'success': False, 'error': '缺少机器人ID'})
     
     try:
