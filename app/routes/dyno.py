@@ -1138,145 +1138,95 @@ def start_discord_bot(bot_token, channel_ids):
         return False, None
 
 # Discord频道API路由
-@dyno_bp.route('/api/discord/channels', methods=['POST'])
-@dyno_bp.route('/api/channels', methods=['POST'])  # 添加兼容路由
+@dyno_bp.route('/api/v1/discord/channels', methods=['POST'])
 @login_required
 def get_discord_channels_api():
-    """获取指定服务器的Discord频道列表，用于AJAX请求"""
-    token = request.form.get('token')
-    guild_id = request.form.get('guild_id')
-    
-    current_app.logger.info(f"收到频道请求，服务器ID: {guild_id}，令牌长度: {len(token) if token else 0}")
-    
-    if not token or not guild_id:
-        current_app.logger.error("获取Discord频道列表：缺少令牌或服务器ID")
-        return jsonify({'success': False, 'error': '缺少令牌或服务器ID'})
-    
-    # 清理令牌，确保格式一致
-    token = token.strip()
-    if token.startswith('Bot '):
-        token = token[4:]
-        
-    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌长度: {len(token)}")
-    
+    """获取指定服务器的Discord频道列表，专用API路由"""
     try:
-        # 在此直接调用Discord API，不使用get_guild_channels函数
-        # 确保令牌格式正确
-        if not token.startswith('Bot '):
-            token = f'Bot {token}'
+        print("\n=== 调用专用API: /api/v1/discord/channels ===")
+        # 支持JSON和表单数据
+        if request.is_json:
+            data = request.get_json()
+            token = data.get('token', '')
+            guild_id = data.get('guild_id', '')
+            print("从JSON请求体获取参数")
+        else:
+            token = request.form.get('token', '')
+            guild_id = request.form.get('guild_id', '')
+            print("从表单数据获取参数")
+            print(f"请求表单数据: {request.form}")
         
-        # 定义API URL
-        url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
-        headers = {
-            'Authorization': token,
-            'Content-Type': 'application/json'
-        }
+        token = token.strip('\'"')
         
-        current_app.logger.info(f"请求Discord频道列表URL: {url}")
-        
-        response = requests.get(url, headers=headers)
-        current_app.logger.info(f"API响应状态码: {response.status_code}")
-        
-        if response.status_code != 200:
-            current_app.logger.error(f"获取频道列表失败: {response.status_code}")
-            current_app.logger.error(f"响应内容: {response.text}")
-            return jsonify({'success': False, 'error': f"API错误: HTTP {response.status_code}"})
+        if not token:
+            print("错误: 缺少机器人令牌")
+            return jsonify({'success': False, 'error': '缺少机器人令牌'})
             
-        channels_data = response.json()
-        current_app.logger.info(f"成功获取到 {len(channels_data)} 个原始频道")
+        if not guild_id:
+            print("错误: 缺少服务器ID")
+            return jsonify({'success': False, 'error': '缺少服务器ID'})
         
-        # 获取父频道（分类）映射
-        categories = {}
-        for channel in channels_data:
-            if channel.get('type') == 4:  # 4 = 分类频道
-                categories[channel.get('id')] = channel.get('name')
+        print(f"令牌长度: {len(token)}")
+        print(f"令牌前5位: {token[:5]}...")
+        print(f"服务器ID: {guild_id}")
         
-        # 格式化返回结果，仅返回文本频道和公告频道
-        formatted_channels = []
-        for channel in channels_data:
-            channel_type = channel.get('type')
-            # 仅包含文本(0)和公告(5)频道
-            if channel_type in [0, 5]:
-                parent_id = channel.get('parent_id')
-                formatted_channels.append({
-                    'id': channel.get('id'),
-                    'name': channel.get('name'),
-                    'type': channel_type,
-                    'parent_id': parent_id,
-                    'parent_name': categories.get(parent_id, '未分类')
-                })
+        # 从Discord API获取频道列表
+        current_app.logger.info("调用get_guild_channels获取频道...")
         
-        # 记录一些返回的频道数据用于调试
-        current_app.logger.info(f"过滤后返回 {len(formatted_channels)} 个可用频道")
-        if formatted_channels:
-            for i, ch in enumerate(formatted_channels[:3]):  # 只记录前3个避免日志过大
-                current_app.logger.info(f"频道样例 {i+1}: ID={ch.get('id')}, 名称={ch.get('name')}, 类型={ch.get('type')}, 分类={ch.get('parent_name')}")
+        # 导入get_guild_channels函数
+        from app.discord.bot_client import get_guild_channels
         
-        response = jsonify({
-            'success': True,
-            'channels': formatted_channels
-        })
+        channels = get_guild_channels(token, guild_id)
         
-        # 添加CORS头
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        
-        return response
+        print(f"获取到 {len(channels)} 个频道")
+        result = {
+            'success': True, 
+            'channels': channels
+        }
+        print(f"返回结果: {result}")
+        return jsonify(result)
     except Exception as e:
         import traceback
-        current_app.logger.error(f"获取Discord频道出错: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
-        
-        response = jsonify({
-            'success': False,
-            'error': f"获取频道失败: {str(e)}",
-            'detail': traceback.format_exc()
-        })
-        
-        # 添加CORS头
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        
-        return response
+        print(f"获取Discord频道列表时出错: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)})
 
 # Discord服务器API路由
-@dyno_bp.route('/api/discord/guilds', methods=['POST'])
-@dyno_bp.route('/api/guilds', methods=['POST'])  # 添加兼容路由
+@dyno_bp.route('/api/v1/discord/guilds', methods=['POST'])
 @login_required
 def get_discord_guilds():
-    """获取机器人所在的Discord服务器列表，用于AJAX请求"""
-    token = request.form.get('token', '').strip()
-    
-    if not token:
-        return jsonify({'success': False, 'error': '缺少机器人令牌'})
-    
-    # 确保令牌格式和内容正确（移除可能的引号和空格）
-    token = token.strip('\'"')
-    
-    # 我们在bot_client.py中已经处理了Bot前缀添加，这里不需要再处理
-    
-    current_app.logger.info(f"处理后的令牌前10位: {token[:10]}...")
-    current_app.logger.info(f"请求Discord服务器列表，令牌前5位: {token[:5]}...")
-    
+    """获取机器人所在的Discord服务器列表，专用API路由"""
     try:
+        print("=== 调用专用API: /api/v1/discord/guilds ===")
+        # 支持JSON和表单数据
+        if request.is_json:
+            data = request.get_json()
+            token = data.get('token', '')
+        else:
+            token = request.form.get('token', '')
+        
+        token = token.strip('\'"')
+        
+        if not token:
+            print("错误: 缺少机器人令牌")
+            return jsonify({'success': False, 'error': '缺少机器人令牌'})
+        
+        print(f"令牌长度: {len(token)}")
+        print(f"令牌前5位: {token[:5]}...")
+        
         # 从Discord API获取服务器列表
         current_app.logger.info("调用get_bot_guilds获取服务器...")
         guilds = get_bot_guilds(token)
-        print(f"获取到 {len(guilds)} 个服务器")
         
-        # 返回服务器列表
-        current_app.logger.info(f"成功获取到 {len(guilds)} 个服务器")
+        print(f"获取到 {len(guilds)} 个服务器")
         return jsonify({
             'success': True, 
             'guilds': guilds
         })
     except Exception as e:
-        print(f"获取Discord服务器列表时出错: {str(e)}")
-        current_app.logger.error(f"获取Discord服务器列表时出错: {str(e)}")
         import traceback
-        current_app.logger.error(traceback.format_exc())
+        print(f"获取Discord服务器列表时出错: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)})
 
 @dyno_bp.route('/api/bot/status', methods=['POST'])
@@ -1338,154 +1288,12 @@ def check_bot_status_api():
             'message': f'检查机器人状态时发生错误: {str(e)}'
         })
 
-@dyno_bp.route('/api/bot/info', methods=['POST'])
-@dyno_bp.route('/api/dyno/bot-info', methods=['POST'])  # 添加兼容的路由
-@login_required
-def get_bot_info_api():
-    """获取Discord机器人信息，用于AJAX请求"""
-    data = request.get_json() or {}
-    form_data = request.form
-    
-    # 兼容多种请求格式
-    bot_id = data.get('bot_id') or form_data.get('bot_id')
-    
-    current_app.logger.info(f"获取机器人信息API被调用, bot_id: {bot_id}, 数据类型: {type(data)}")
-    
-    if not bot_id:
-        current_app.logger.error("获取机器人信息API错误: 缺少机器人ID")
-        return jsonify({'success': False, 'error': '缺少机器人ID'})
-    
-    try:
-        bot = DiscordBot.query.get(bot_id)
-        
-        if not bot:
-            return jsonify({'success': False, 'error': '找不到指定的机器人'})
-        
-        # 验证用户权限
-        if bot.group_id:
-            group = Group.query.get(bot.group_id)
-            if not current_user.is_admin and current_user.id != group.owner_id and current_user.get_role_in_group(group.id) != 'admin':
-                return jsonify({'success': False, 'error': '您没有权限查看此机器人信息'})
-        elif not current_user.is_admin:
-            return jsonify({'success': False, 'error': '只有管理员可以查看全局机器人信息'})
-        
-        # 获取机器人信息
-        from app.discord.bot_client import get_bot_info
-        
-        bot_info = get_bot_info(bot.bot_token)
-        
-        if not bot_info:
-            return jsonify({'success': False, 'error': '无法获取机器人信息，请检查令牌是否有效'})
-        
-        # 更新数据库中的机器人名称
-        if bot_info.get('username') and bot_info.get('username') != bot.bot_name:
-            bot.bot_name = bot_info.get('username')
-            db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'name': bot_info.get('username', '未知'),
-            'id': bot_info.get('id', ''),
-            'avatar': bot_info.get('avatar', ''),
-            'discriminator': bot_info.get('discriminator', ''),
-            'bot': bot_info.get('bot', True),
-            'verified': bot_info.get('verified', False),
-            'active': bot.active,
-            'group_id': bot.group_id
-        })
-    except Exception as e:
-        current_app.logger.error(f"API获取机器人信息时出错: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
-
-# 添加专用的机器人API路由以避免路由冲突
-@dyno_bp.route('/api/v1/discord/guilds', methods=['POST'])
-@login_required
-def get_discord_guilds_v1():
-    """获取机器人所在的Discord服务器列表，专用API路由"""
-    try:
-        print("=== 调用专用API: /api/v1/discord/guilds ===")
-        # 支持JSON和表单数据
-        if request.is_json:
-            data = request.get_json()
-            token = data.get('token', '')
-        else:
-            token = request.form.get('token', '')
-        
-        token = token.strip('\'"')
-        
-        if not token:
-            print("错误: 缺少机器人令牌")
-            return jsonify({'success': False, 'error': '缺少机器人令牌'})
-        
-        print(f"令牌长度: {len(token)}")
-        print(f"令牌前5位: {token[:5]}...")
-        
-        # 从Discord API获取服务器列表
-        current_app.logger.info("调用get_bot_guilds获取服务器...")
-        guilds = get_bot_guilds(token)
-        
-        print(f"获取到 {len(guilds)} 个服务器")
-        return jsonify({
-            'success': True, 
-            'guilds': guilds
-        })
-    except Exception as e:
-        import traceback
-        print(f"获取Discord服务器列表时出错: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({'success': False, 'error': str(e)})
-
-@dyno_bp.route('/api/v1/discord/channels', methods=['POST'])
-@login_required
-def get_discord_channels_v1():
-    """获取指定服务器的Discord频道列表，专用API路由"""
-    try:
-        print("=== 调用专用API: /api/v1/discord/channels ===")
-        # 支持JSON和表单数据
-        if request.is_json:
-            data = request.get_json()
-            token = data.get('token', '')
-            guild_id = data.get('guild_id', '')
-        else:
-            token = request.form.get('token', '')
-            guild_id = request.form.get('guild_id', '')
-        
-        token = token.strip('\'"')
-        
-        if not token:
-            print("错误: 缺少机器人令牌")
-            return jsonify({'success': False, 'error': '缺少机器人令牌'})
-            
-        if not guild_id:
-            print("错误: 缺少服务器ID")
-            return jsonify({'success': False, 'error': '缺少服务器ID'})
-        
-        print(f"令牌长度: {len(token)}")
-        print(f"令牌前5位: {token[:5]}...")
-        print(f"服务器ID: {guild_id}")
-        
-        # 从Discord API获取频道列表
-        current_app.logger.info("调用get_guild_channels获取频道...")
-        channels = get_guild_channels(token, guild_id)
-        
-        print(f"获取到 {len(channels)} 个频道")
-        return jsonify({
-            'success': True, 
-            'channels': channels
-        })
-    except Exception as e:
-        import traceback
-        print(f"获取Discord频道列表时出错: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({'success': False, 'error': str(e)})
-
-# 添加专用的机器人信息API路由
 @dyno_bp.route('/api/v1/bot/info', methods=['POST'])
 @login_required
 def get_bot_info_v1():
     """获取机器人信息，专用API路由"""
     try:
-        print("=== 调用专用API: /api/v1/bot/info ===")
+        print("\n=== 调用专用API: /api/v1/bot/info ===")
         # 支持JSON和表单数据
         if request.is_json:
             data = request.get_json()
