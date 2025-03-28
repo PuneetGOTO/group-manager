@@ -91,7 +91,9 @@
                         <div class="mb-3">
                             <label class="form-label">机器人令牌</label>
                             <div class="input-group">
-                                <input type="password" class="form-control token-input" name="bot_token" placeholder="输入Discord机器人令牌" 
+                                <input type="password" class="form-control token-input" name="bot_token" 
+                                       id="bot_token_{{ global_bot.id }}" data-bot-id="{{ global_bot.id }}" 
+                                       placeholder="输入Discord机器人令牌" 
                                        value="{{ global_bot.bot_token if global_bot.bot_token else '' }}">
                                 <button type="button" class="btn btn-outline-secondary toggle-password">
                                     <i class="fas fa-eye"></i>
@@ -220,7 +222,9 @@
                                 <div class="mb-3">
                                     <label class="form-label">机器人令牌</label>
                                     <div class="input-group">
-                                        <input type="password" class="form-control token-input" name="bot_token" placeholder="输入Discord机器人令牌" 
+                                        <input type="password" class="form-control token-input" name="bot_token" 
+                                               id="bot_token_{{ bot.id }}" data-bot-id="{{ bot.id }}" 
+                                               placeholder="输入Discord机器人令牌" 
                                                value="{{ bot.bot_token if bot.bot_token else '' }}">
                                         <button type="button" class="btn btn-outline-secondary toggle-password">
                                             <i class="fas fa-eye"></i>
@@ -424,8 +428,10 @@
                 }
                 
                 // 获取当前机器人的令牌
-                const tokenInput = document.querySelector(`input[name="token"][data-bot-id="${botId}"]`);
+                const tokenInput = document.querySelector(`input[name="bot_token"][id="bot_token_${botId}"]`) || 
+                                  document.querySelector(`input[name="bot_token"][data-bot-id="${botId}"]`);
                 if (!tokenInput) {
+                    console.error('找不到机器人令牌输入字段', botId);
                     alert('找不到机器人令牌输入字段');
                     return;
                 }
@@ -754,15 +760,17 @@
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i> ${error.message || '获取服务器列表时出错'}
                 </div>
-                <div class="mt-3">
-                    <p><strong>请确保:</strong></p>
-                    <ul>
-                        <li>机器人令牌格式正确</li>
-                        <li>机器人已被邀请到至少一个服务器</li>
-                        <li>机器人具有查看服务器的权限</li>
-                    </ul>
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-outline-secondary" id="retryChannelsBtn">
+                        <i class="fas fa-sync me-1"></i> 重试
+                    </button>
                 </div>
             `;
+            
+            // 添加重试按钮事件
+            document.getElementById('retryChannelsBtn').addEventListener('click', function() {
+                fetchDiscordChannels(guildId, token);
+            });
         });
     }
     
@@ -933,23 +941,26 @@
         const botNameElement = document.querySelector(`.bot-info-container[data-bot-id="${botId}"] .bot-name`);
         if (!botNameElement) return;
         
-        fetch(`/dyno/api/bot/info`, {
+        console.log('加载机器人信息, bot_id:', botId);
+        
+        fetch(`/api/dyno/bot-info`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: `bot_id=${botId}`
+            body: JSON.stringify({ bot_id: botId })
         })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    botNameElement.textContent = data.name || '未知机器人';
+                    botNameElement.textContent = data.name || '未知';
                 } else {
-                    botNameElement.textContent = '无法获取信息';
+                    botNameElement.textContent = '加载失败';
+                    console.error('加载机器人信息失败:', data.error);
                 }
             })
             .catch(error => {
-                console.error('加载机器人信息失败:', error);
+                console.error('加载机器人信息错误:', error);
                 botNameElement.textContent = '加载失败';
             });
     }
