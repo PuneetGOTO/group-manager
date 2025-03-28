@@ -980,6 +980,7 @@ def activate_bot():
                 existing_bot.activated_by = current_user.id
                 
                 db.session.commit()
+                bot_id = existing_bot.id
                 flash(f'机器人 {existing_bot.bot_name} 已成功激活', 'success')
                 
                 # 记录系统事件
@@ -994,16 +995,6 @@ def activate_bot():
                 )
                 db.session.add(event)
                 db.session.commit()
-                
-                # 启动机器人进程
-                success, pid = start_discord_bot(existing_bot.bot_token, channel_ids)
-                if success:
-                    current_app.logger.info(f"成功启动机器人进程，PID: {pid}")
-                    # 已在前面更新机器人状态，这里无需重复
-                    return redirect(url_for('dyno.bot_dashboard'))
-                else:
-                    flash('机器人启动失败', 'danger')
-                    return redirect(url_for('dyno.bot_dashboard'))
             else:
                 current_app.logger.warning(f"找不到bot_id为{bot_id}的机器人记录")
         except Exception as e:
@@ -1096,11 +1087,11 @@ def activate_bot():
         
         flash(f'群组 {group.name} 的机器人 {bot_info.get("username", "未知机器人")} 已激活', 'success')
     
-    # 启动Discord机器人进程
+    # 启动Discord机器人进程 - 只在这里统一启动一次
+    current_app.logger.info(f"准备启动机器人，使用令牌，群组ID: {group_id}")
     success, pid = start_discord_bot(bot_token, channel_ids)
     if success:
         current_app.logger.info(f"成功启动机器人进程，PID: {pid}")
-        # 已在前面更新机器人状态，这里无需重复
         return redirect(url_for('dyno.bot_dashboard'))
     else:
         flash('机器人启动失败', 'danger')
@@ -1146,8 +1137,8 @@ def get_discord_channels():
     current_app.logger.info(f"收到频道请求，服务器ID: {guild_id}，有无令牌: {'是' if token else '否'}")
     
     if not token or not guild_id:
-        current_app.logger.error("缺少必要参数：令牌或服务器ID")
-        return jsonify({'success': False, 'error': '缺少必要参数'})
+        current_app.logger.error("获取Discord频道列表：缺少令牌或服务器ID")
+        return jsonify({'success': False, 'error': '缺少令牌或服务器ID'})
     
     # 确保令牌格式和内容正确（移除可能的引号和空格）
     token = token.strip('\'"')

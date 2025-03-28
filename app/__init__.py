@@ -71,14 +71,20 @@ def create_app():
             from sqlalchemy import text
             import logging
             
-            # 记录迁移信息
+            # 首先初始化数据库，确保表已创建
+            app.logger.info("正在初始化数据库...")
+            db.create_all()
+            app.logger.info("数据库表创建成功")
+            
+            # 检查表是否存在，再进行迁移
             app.logger.info("检查数据库迁移：添加bot_name列到discord_bot表")
             
             # 检查字段是否已存在
             inspector = sa.inspect(db.engine)
-            columns = [col['name'] for col in inspector.get_columns('discord_bot') if 'discord_bot' in [t.name for t in inspector.get_table_names()]]
             
-            if 'discord_bot' in [t for t in inspector.get_table_names()]:
+            if 'discord_bot' in [t.name for t in inspector.get_table_names()]:
+                columns = [col['name'] for col in inspector.get_columns('discord_bot')]
+                
                 # 检查bot_name字段
                 if 'bot_name' not in columns:
                     app.logger.info("正在添加bot_name字段到discord_bot表...")
@@ -95,7 +101,7 @@ def create_app():
             else:
                 app.logger.info("discord_bot表不存在，跳过迁移")
         except Exception as e:
-            app.logger.error(f"数据库迁移过程中出错: {str(e)}")
+            app.logger.error(f"数据库迁移过程中出错: {e}")
             import traceback
             app.logger.error(traceback.format_exc())
     
