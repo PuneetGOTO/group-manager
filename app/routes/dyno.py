@@ -1127,75 +1127,6 @@ def start_discord_bot(bot_token, channel_ids):
 
 # Discord频道API路由
 @dyno_bp.route('/api/discord/channels', methods=['POST'])
-@login_required
-def get_discord_channels():
-    """获取Discord服务器的频道列表，用于AJAX请求"""
-    token = request.form.get('token', '').strip()
-    guild_id = request.form.get('guild_id', '').strip()
-    
-    # 打印请求信息
-    current_app.logger.info(f"收到频道请求，服务器ID: {guild_id}，有无令牌: {'是' if token else '否'}")
-    
-    if not token or not guild_id:
-        current_app.logger.error("获取Discord频道列表：缺少令牌或服务器ID")
-        return jsonify({'success': False, 'error': '缺少令牌或服务器ID'})
-    
-    # 确保令牌格式和内容正确（移除可能的引号和空格）
-    token = token.strip('\'"')
-    
-    # 我们在bot_client.py中已经处理了Bot前缀添加，这里不需要再处理
-    
-    current_app.logger.info(f"处理后的令牌前10位: {token[:10]}...")
-    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}")
-    
-    try:
-        # 从Discord API获取频道列表
-        current_app.logger.info("调用get_guild_channels获取频道...")
-        channels = get_guild_channels(token, guild_id)
-        
-        current_app.logger.info(f"获取到 {len(channels)} 个频道")
-        
-        # 打印获取到的频道数据以进行调试
-        if channels:
-            # 打印所有频道信息便于调试
-            for i, channel in enumerate(channels):
-                current_app.logger.info(f"频道{i+1}: ID={channel['id']}, 名称={channel['name']}, 类型={channel['type']}, 分类={channel['parent_name']}")
-            
-            # 添加一个测试频道确保前端能正确解析
-            import random
-            test_channel_id = ''.join([str(random.randint(0, 9)) for _ in range(18)])
-            channels.append({
-                'id': test_channel_id,
-                'name': 'DEBUG-测试频道',
-                'type': 0,
-                'parent_id': None,
-                'parent_name': 'DEBUG-测试分类'
-            })
-            current_app.logger.info(f"添加了测试频道: DEBUG-测试频道 (ID: {test_channel_id})")
-        else:
-            current_app.logger.warning(f"没有获取到任何频道，可能是权限问题或服务器没有频道")
-            
-        result = {
-            'success': True,
-            'channels': channels
-        }
-        current_app.logger.info(f"返回频道数据，数量: {len(channels)}")
-        return jsonify(result)
-    except Exception as e:
-        error_message = str(e)
-        current_app.logger.error(f"获取Discord频道时出错: {error_message}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
-        
-        # 返回更详细的错误信息
-        return jsonify({
-            'success': False,
-            'error': f"获取频道失败: {error_message}",
-            'error_details': traceback.format_exc()
-        })
-
-@dyno_bp.route('/api/discord/channels', methods=['POST'])
-@login_required
 def get_discord_channels_api():
     """获取指定服务器的Discord频道列表，用于AJAX请求"""
     token = request.form.get('token')
@@ -1205,79 +1136,36 @@ def get_discord_channels_api():
         current_app.logger.error("获取Discord频道列表：缺少令牌或服务器ID")
         return jsonify({'success': False, 'error': '缺少令牌或服务器ID'})
     
-    # 确保令牌不包含"Bot "前缀，因为我们会在API调用中添加
+    # 清理令牌，确保格式一致
+    token = token.strip()
     if token.startswith('Bot '):
         token = token[4:]
         
-    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌前5位: {token[:5]}...")
+    current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌长度: {len(token)}")
     
     try:
-        # 添加Bot前缀到令牌
-        if not token.startswith('Bot '):
-            token = f'Bot {token}'
+        # 不需要在这里添加Bot前缀，因为get_guild_channels函数会处理
+        channels = get_guild_channels(token, guild_id)
         
-        # 定义API URL
-        url = f"https://discord.com/api/v10/guilds/{guild_id}/channels"
-        
-        # 发送请求获取频道
-        headers = {
-            'Authorization': token,
-            'Content-Type': 'application/json'
-        }
-        
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code != 200:
-            current_app.logger.error(f"获取Discord频道列表失败，状态码: {response.status_code}")
-            error_message = f"API错误: HTTP {response.status_code}"
-            try:
-                error_data = response.json()
-                if 'message' in error_data:
-                    error_message = f"{error_message} - {error_data['message']}"
-            except:
-                pass
-            return jsonify({'success': False, 'error': error_message})
-        
-        # 解析频道数据
-        channels_data = response.json()
-        
-        # 过滤出文本频道和公告频道
-        text_channels = []
-        categories = {}
-        
-        # 首先找出所有分类
-        for channel in channels_data:
-            if channel.get('type') == 4:  # 4是分类类型
-                categories[channel['id']] = channel['name']
-        
-        # 然后处理频道并添加分类信息
-        for channel in channels_data:
-            # 仅包含文本频道(0)和公告频道(5)
-            if channel.get('type') in [0, 5]:
-                parent_id = channel.get('parent_id')
-                parent_name = categories.get(parent_id, '未分类') if parent_id else '未分类'
-                
-                text_channels.append({
-                    'id': channel['id'],
-                    'name': channel['name'],
-                    'type': channel['type'],
-                    'parent_id': parent_id,
-                    'parent_name': parent_name
-                })
-        
-        # 按照分类名称和频道名称排序
-        text_channels.sort(key=lambda x: (x['parent_name'], x['name']))
-        
-        current_app.logger.info(f"成功获取到 {len(text_channels)} 个频道")
+        # 详细记录返回的频道数据，用于调试
+        current_app.logger.info(f"获取到 {len(channels)} 个频道")
+        if len(channels) > 0:
+            for i, ch in enumerate(channels[:5]):  # 只记录前5个避免日志过大
+                current_app.logger.info(f"频道样例 {i+1}: ID={ch.get('id')}, 名称={ch.get('name')}, 类型={ch.get('type')}")
+            
         return jsonify({
             'success': True,
-            'channels': text_channels
+            'channels': channels
         })
     except Exception as e:
         import traceback
-        current_app.logger.error(f"获取Discord频道列表时出错: {str(e)}")
+        current_app.logger.error(f"获取Discord频道出错: {str(e)}")
         current_app.logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({
+            'success': False,
+            'error': f"获取频道失败: {str(e)}",
+            'detail': traceback.format_exc()
+        })
 
 # Discord服务器API路由
 @dyno_bp.route('/api/discord/guilds', methods=['POST'])
