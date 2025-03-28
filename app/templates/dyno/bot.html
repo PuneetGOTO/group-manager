@@ -104,7 +104,7 @@
                             <label class="form-label">欢迎频道 <small class="text-muted">(可选，留空表示所有频道)</small></label>
                             <div class="input-group">
                                 <input type="text" class="form-control" name="channel_ids" id="welcome_channel_ids" placeholder="输入频道ID，多个ID用逗号分隔" value="{{ global_bot.channel_ids }}">
-                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="welcome_channel_ids">
+                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-target="welcome_channel_ids" data-bot-id="{{ global_bot.id }}">
                                     <i class="fas fa-list"></i> 选择频道
                                 </button>
                                 <span class="input-group-text selected-channels-display" id="welcome-channels-count">所有频道</span>
@@ -155,7 +155,7 @@
                             <label class="form-label">欢迎频道 <small class="text-muted">(可选，留空表示所有频道)</small></label>
                             <div class="input-group">
                                 <input type="text" class="form-control" name="channel_ids" id="welcome_channel_ids_new" placeholder="输入频道ID，多个ID用逗号分隔">
-                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="welcome_channel_ids_new">
+                                <button type="button" class="btn btn-outline-secondary select-channels-btn" data-target="welcome_channel_ids_new">
                                     <i class="fas fa-list"></i> 选择频道
                                 </button>
                                 <span class="input-group-text selected-channels-display">所有频道</span>
@@ -233,7 +233,7 @@
                                     <div class="input-group">
                                         <input type="text" class="form-control" name="channel_ids" id="channel_ids_{{ bot.id }}" placeholder="输入频道ID，多个ID用逗号分隔" value="{{ bot.channel_ids }}">
                                         <div class="selected-channels-display form-text"></div>
-                                        <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="channel_ids_{{ bot.id }}">
+                                        <button type="button" class="btn btn-outline-secondary select-channels-btn" data-target="channel_ids_{{ bot.id }}" data-bot-id="{{ bot.id }}">
                                             <i class="fas fa-list"></i>
                                         </button>
                                     </div>
@@ -297,7 +297,7 @@
                                 <div class="input-group">
                                     <input type="text" class="form-control" name="channel_ids" id="channel_ids_group_new" placeholder="输入频道ID，多个ID用逗号分隔">
                                     <div class="selected-channels-display form-text"></div>
-                                    <button type="button" class="btn btn-outline-secondary select-channels-btn" data-input-id="channel_ids_group_new">
+                                    <button type="button" class="btn btn-outline-secondary select-channels-btn" data-target="channel_ids_group_new">
                                         <i class="fas fa-list"></i>
                                     </button>
                                 </div>
@@ -903,17 +903,7 @@
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-2"></i> 获取频道失败: ${data.error || '未知错误'}
                     </div>
-                    <div class="text-center mt-3">
-                        <button type="button" class="btn btn-outline-secondary" id="retryChannelsBtn">
-                            <i class="fas fa-sync me-1"></i> 重试
-                        </button>
-                    </div>
                 `;
-                
-                // 添加重试按钮事件
-                document.getElementById('retryChannelsBtn').addEventListener('click', function() {
-                    fetchDiscordChannels(guildId, token);
-                });
             }
         })
         .catch(error => {
@@ -943,7 +933,13 @@
         const botNameElement = document.querySelector(`.bot-info-container[data-bot-id="${botId}"] .bot-name`);
         if (!botNameElement) return;
         
-        fetch(`/dyno/api/bot-info/${botId}`)
+        fetch(`/dyno/api/bot/info`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `bot_id=${botId}`
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
