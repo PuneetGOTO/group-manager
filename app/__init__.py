@@ -23,6 +23,10 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///site.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
+    # 静态文件配置
+    app.config['STATIC_FOLDER'] = 'static'
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # 开发模式禁用缓存
+    
     # 记住我功能配置 - 设置为30天
     app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=60)  # 记住登录状态60天
     app.config['REMEMBER_COOKIE_SECURE'] = not app.debug  # 生产环境下使用HTTPS

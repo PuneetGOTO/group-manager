@@ -664,7 +664,7 @@
         // 设置加载状态
         botNameElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
         
-        fetch('/api/v1/bot/info', {
+        fetch('/dyno/api/v1/bot/info', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -715,13 +715,13 @@
         }
         
         // 记录API请求的详细信息以便调试
-        console.log('请求URL：/api/v1/discord/guilds');
+        console.log('请求URL：/dyno/api/v1/discord/guilds');
         console.log('请求方法：POST');
         console.log('请求格式：application/x-www-form-urlencoded');
         console.log('令牌长度：', token.length);
         
         // 用x-www-form-urlencoded格式发送请求
-        fetch('/api/v1/discord/guilds', {
+        fetch('/dyno/api/v1/discord/guilds', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -880,8 +880,8 @@
         token = token.trim();
         
         // 通过后端获取频道列表
-        console.log('发送API请求到:', '/api/v1/discord/channels');
-        fetch('/api/v1/discord/channels', {
+        console.log('发送API请求到:', '/dyno/api/v1/discord/channels');
+        fetch('/dyno/api/v1/discord/channels', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
