@@ -762,7 +762,7 @@ def save_command_settings(group_id):
     
     # 检查权限
     if not current_user.can_manage_group(group.id):
-        return jsonify(success=False, error='您没有权限管理此群组的Dyno设置')
+        return jsonify({'success': False, 'error': '您没有权限管理此群组的Dyno设置'})
     
     try:
         data = request.get_json()
@@ -777,10 +777,10 @@ def save_command_settings(group_id):
                 command.enabled = enabled
         
         db.session.commit()
-        return jsonify(success=True)
+        return jsonify({'success': True})
     except Exception as e:
         current_app.logger.error(f"保存命令设置时出错: {str(e)}")
-        return jsonify(success=False, error=str(e))
+        return jsonify({'success': False, 'error': str(e)})
 
 # BOT管理路由
 @dyno_bp.route('/bot', methods=['GET'])
@@ -1360,9 +1360,14 @@ def get_bot_info_api():
         
         return jsonify({
             'success': True,
-            'bot_name': bot_info.get('username', bot.bot_name or '未知机器人'),
-            'bot_id': bot_info.get('id'),
-            'avatar': bot_info.get('avatar')
+            'name': bot_info.get('username', '未知'),
+            'id': bot_info.get('id', ''),
+            'avatar': bot_info.get('avatar', ''),
+            'discriminator': bot_info.get('discriminator', ''),
+            'bot': bot_info.get('bot', True),
+            'verified': bot_info.get('verified', False),
+            'active': bot.active,
+            'group_id': bot.group_id
         })
     except Exception as e:
         current_app.logger.error(f"API获取机器人信息时出错: {str(e)}")
