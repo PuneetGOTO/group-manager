@@ -164,7 +164,7 @@
                                                     <td>{{ reward.level }}</td>
                                                     <td>{{ reward.role_name }}</td>
                                                     <td>
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteReward({{ reward.id }})">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteReward('{{ reward.id }}')">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
                                                     </td>
@@ -478,7 +478,7 @@
         }
         
         // 加载频道列表
-        fetch('/api/v1/discord/channels', {
+        fetch('/dyno/api/v1/discord/channels', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
