@@ -371,7 +371,9 @@ def welcome(group_id):
         flash('欢迎消息设置已更新', 'success')
         return redirect(url_for('dyno.welcome', group_id=group_id))
     
-    return render_template('dyno/welcome.html', group=group, welcome=welcome, channels=channels)
+    # 确保获取机器人对象并传递给模板
+    bot = DiscordBot.query.filter_by(group_id=group_id, is_active=True).first()
+    return render_template('dyno/welcome.html', group=group, welcome=welcome, channels=channels, bot=bot)
 
 # 自定义命令
 @dyno_bp.route('/group/<int:group_id>/dyno/commands', methods=['GET', 'POST'])
@@ -559,6 +561,8 @@ def levels(group_id):
     # 获取用户等级排行榜
     leaderboard = UserLevel.query.filter_by(level_system_id=level_system.id).order_by(UserLevel.level.desc(), UserLevel.xp.desc()).limit(10).all()
     
+    # 确保获取机器人对象并传递给模板
+    bot = DiscordBot.query.filter_by(group_id=group_id, is_active=True).first()
     return render_template(
         'dyno/levels.html',
         group=group,
@@ -566,7 +570,8 @@ def levels(group_id):
         channels=channels,
         roles=roles,
         level_roles=level_roles,
-        leaderboard=leaderboard
+        leaderboard=leaderboard,
+        bot=bot
     )
 
 # 服务器日志设置
@@ -627,7 +632,9 @@ def logs(group_id):
         flash('服务器日志设置已更新', 'success')
         return redirect(url_for('dyno.logs', group_id=group_id))
     
-    return render_template('dyno/logs.html', group=group, log_setting=log_setting, channels=channels)
+    # 确保获取机器人对象并传递给模板
+    bot = DiscordBot.query.filter_by(group_id=group_id, is_active=True).first()
+    return render_template('dyno/logs.html', group=group, log_setting=log_setting, channels=channels, bot=bot)
 
 # 音乐播放设置
 @dyno_bp.route('/group/<int:group_id>/dyno/music', methods=['GET', 'POST'])
