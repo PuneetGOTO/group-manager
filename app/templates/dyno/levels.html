@@ -51,9 +51,14 @@
             <!-- 标题 -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="mb-0">
-                    <i class="fas fa-chart-line text-primary me-2"></i> 等级系统
+                    <i class="fas fa-chart-line text-success me-2"></i> 等级系统设置
                 </h2>
             </div>
+            
+            <!-- 隐藏字段用于存储机器人信息 -->
+            <input type="hidden" id="bot_token_hidden" value="{{ bot.bot_token if bot else '' }}">
+            <input type="hidden" id="group_id_hidden" value="{{ group.id }}">
+            <input type="hidden" id="guild_id_hidden" value="{{ group.discord_id }}">
             
             <!-- 主要配置表单 -->
             <form method="post">
@@ -425,6 +430,122 @@
                     </td>
                 </tr>
             `).join('');
+        }
+    });
+</script>
+
+<!-- 频道加载脚本 -->
+<script>
+    // 动态加载频道列表
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取机器人令牌
+        const botTokenField = document.getElementById('bot_token_hidden');
+        
+        if (!botTokenField) {
+            console.error('找不到机器人令牌字段');
+            return;
+        }
+        
+        const token = botTokenField.value;
+        if (!token) {
+            console.error('机器人令牌为空');
+            return;
+        }
+        
+        // 获取群组ID
+        const groupIdField = document.getElementById('group_id_hidden');
+        if (!groupIdField) {
+            console.error('找不到群组ID字段');
+            return;
+        }
+        
+        const groupId = groupIdField.value;
+        const guildId = document.getElementById('guild_id_hidden')?.value;
+        
+        if (!guildId) {
+            console.error('找不到Discord服务器ID');
+            return;
+        }
+        
+        console.log('准备加载等级系统频道列表...');
+        console.log('群组ID:', groupId);
+        console.log('Discord服务器ID:', guildId);
+        
+        // 添加机器人前缀如果需要
+        let formattedToken = token;
+        if (!token.startsWith('Bot ')) {
+            formattedToken = 'Bot ' + token;
+        }
+        
+        // 加载频道列表
+        fetch('/dyno/api/v1/discord/channels', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `token=${encodeURIComponent(formattedToken)}&guild_id=${encodeURIComponent(guildId)}`
+        })
+        .then(response => {
+            console.log('频道列表API响应状态:', response.status);
+            if (!response.ok) {
+                throw new Error(`服务器响应错误: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('频道列表获取成功, 条目数:', data.channels ? data.channels.length : 0);
+            
+            if (data.success && data.channels) {
+                // 更新所有频道选择下拉菜单
+                updateChannelDropdowns(data.channels);
+            } else {
+                console.error('获取频道失败:', data.error || '未知错误');
+            }
+        })
+        .catch(error => {
+            console.error('加载频道列表出错:', error);
+        });
+        
+        // 更新所有频道下拉菜单
+        function updateChannelDropdowns(channels) {
+            // 获取所有频道选择下拉菜单
+            const channelDropdowns = [
+                document.getElementById('announce_channel'),
+            ].filter(dropdown => dropdown !== null);
+            
+            if (channelDropdowns.length === 0) {
+                console.error('找不到频道选择下拉菜单');
+                return;
+            }
+            
+            // 过滤文本频道
+            const textChannels = channels.filter(channel => channel.type === 0);
+            
+            // 更新每个下拉菜单
+            channelDropdowns.forEach(dropdown => {
+                // 保存当前选中的值
+                const selectedValue = dropdown.value;
+                
+                // 清空现有选项，保留第一个默认选项
+                const defaultOption = dropdown.options[0];
+                dropdown.innerHTML = '';
+                dropdown.appendChild(defaultOption);
+                
+                // 添加频道选项
+                textChannels.forEach(channel => {
+                    const option = document.createElement('option');
+                    option.value = channel.id;
+                    option.textContent = `#${channel.name}`;
+                    dropdown.appendChild(option);
+                    
+                    // 如果这是之前选中的选项，重新选中它
+                    if (channel.id === selectedValue) {
+                        option.selected = true;
+                    }
+                });
+            });
+            
+            console.log(`成功更新了 ${channelDropdowns.length} 个等级系统频道下拉菜单`);
         }
     });
 </script>
