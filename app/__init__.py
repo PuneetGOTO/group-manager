@@ -82,7 +82,11 @@ def create_app():
             # 检查字段是否已存在
             inspector = sa.inspect(db.engine)
             
-            if 'discord_bot' in [t.name for t in inspector.get_table_names()]:
+            # 获取所有表名 - 直接使用字符串列表
+            table_names = inspector.get_table_names()
+            app.logger.info(f"数据库中的表: {table_names}")
+            
+            if 'discord_bot' in table_names:
                 columns = [col['name'] for col in inspector.get_columns('discord_bot')]
                 
                 # 检查bot_name字段
