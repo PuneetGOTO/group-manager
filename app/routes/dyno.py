@@ -1132,6 +1132,8 @@ def get_discord_channels_api():
     token = request.form.get('token')
     guild_id = request.form.get('guild_id')
     
+    current_app.logger.info(f"收到频道请求，服务器ID: {guild_id}，令牌长度: {len(token) if token else 0}")
+    
     if not token or not guild_id:
         current_app.logger.error("获取Discord频道列表：缺少令牌或服务器ID")
         return jsonify({'success': False, 'error': '缺少令牌或服务器ID'})
@@ -1144,28 +1146,86 @@ def get_discord_channels_api():
     current_app.logger.info(f"请求Discord频道列表，服务器ID: {guild_id}，令牌长度: {len(token)}")
     
     try:
-        # 不需要在这里添加Bot前缀，因为get_guild_channels函数会处理
-        channels = get_guild_channels(token, guild_id)
+        # 在此直接调用Discord API，不使用get_guild_channels函数
+        # 确保令牌格式正确
+        if not token.startswith('Bot '):
+            token = f'Bot {token}'
         
-        # 详细记录返回的频道数据，用于调试
-        current_app.logger.info(f"获取到 {len(channels)} 个频道")
-        if len(channels) > 0:
-            for i, ch in enumerate(channels[:5]):  # 只记录前5个避免日志过大
-                current_app.logger.info(f"频道样例 {i+1}: ID={ch.get('id')}, 名称={ch.get('name')}, 类型={ch.get('type')}")
+        # 定义API URL
+        url = f'https://discord.com/api/v10/guilds/{guild_id}/channels'
+        headers = {
+            'Authorization': token,
+            'Content-Type': 'application/json'
+        }
+        
+        current_app.logger.info(f"请求Discord频道列表URL: {url}")
+        
+        response = requests.get(url, headers=headers)
+        current_app.logger.info(f"API响应状态码: {response.status_code}")
+        
+        if response.status_code != 200:
+            current_app.logger.error(f"获取频道列表失败: {response.status_code}")
+            current_app.logger.error(f"响应内容: {response.text}")
+            return jsonify({'success': False, 'error': f"API错误: HTTP {response.status_code}"})
             
-        return jsonify({
+        channels_data = response.json()
+        current_app.logger.info(f"成功获取到 {len(channels_data)} 个原始频道")
+        
+        # 获取父频道（分类）映射
+        categories = {}
+        for channel in channels_data:
+            if channel.get('type') == 4:  # 4 = 分类频道
+                categories[channel.get('id')] = channel.get('name')
+        
+        # 格式化返回结果，仅返回文本频道和公告频道
+        formatted_channels = []
+        for channel in channels_data:
+            channel_type = channel.get('type')
+            # 仅包含文本(0)和公告(5)频道
+            if channel_type in [0, 5]:
+                parent_id = channel.get('parent_id')
+                formatted_channels.append({
+                    'id': channel.get('id'),
+                    'name': channel.get('name'),
+                    'type': channel_type,
+                    'parent_id': parent_id,
+                    'parent_name': categories.get(parent_id, '未分类')
+                })
+        
+        # 记录一些返回的频道数据用于调试
+        current_app.logger.info(f"过滤后返回 {len(formatted_channels)} 个可用频道")
+        if formatted_channels:
+            for i, ch in enumerate(formatted_channels[:3]):  # 只记录前3个避免日志过大
+                current_app.logger.info(f"频道样例 {i+1}: ID={ch.get('id')}, 名称={ch.get('name')}, 类型={ch.get('type')}, 分类={ch.get('parent_name')}")
+        
+        response = jsonify({
             'success': True,
-            'channels': channels
+            'channels': formatted_channels
         })
+        
+        # 添加CORS头
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        
+        return response
     except Exception as e:
         import traceback
         current_app.logger.error(f"获取Discord频道出错: {str(e)}")
         current_app.logger.error(traceback.format_exc())
-        return jsonify({
+        
+        response = jsonify({
             'success': False,
             'error': f"获取频道失败: {str(e)}",
             'detail': traceback.format_exc()
         })
+        
+        # 添加CORS头
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        
+        return response
 
 # Discord服务器API路由
 @dyno_bp.route('/api/discord/guilds', methods=['POST'])
