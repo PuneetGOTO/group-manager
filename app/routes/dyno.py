@@ -977,6 +977,7 @@ def activate_bot():
                 existing_bot.status = 'online'
                 existing_bot.channel_ids = channel_ids
                 existing_bot.last_activated = datetime.now()
+                existing_bot.activated_at = datetime.now()  # 添加激活时间
                 existing_bot.activated_by = current_user.id
                 
                 db.session.commit()
@@ -1017,6 +1018,7 @@ def activate_bot():
             existing_bot.status = 'online'
             existing_bot.channel_ids = channel_ids
             existing_bot.last_activated = datetime.now()
+            existing_bot.activated_at = datetime.now()  # 添加激活时间
             existing_bot.activated_by = current_user.id
             
             db.session.commit()
@@ -1029,6 +1031,7 @@ def activate_bot():
                 status='online',
                 channel_ids=channel_ids,
                 last_activated=datetime.now(),
+                activated_at=datetime.now(),  # 添加激活时间
                 activated_by=current_user.id
             )
             
@@ -1065,6 +1068,7 @@ def activate_bot():
             existing_bot.status = 'online'
             existing_bot.channel_ids = channel_ids
             existing_bot.last_activated = datetime.now()
+            existing_bot.activated_at = datetime.now()  # 添加激活时间
             existing_bot.activated_by = current_user.id
             
             db.session.commit()
@@ -1078,6 +1082,7 @@ def activate_bot():
                 status='online',
                 channel_ids=channel_ids,
                 last_activated=datetime.now(),
+                activated_at=datetime.now(),  # 添加激活时间
                 activated_by=current_user.id
             )
             
@@ -1291,25 +1296,34 @@ def check_bot_status_api():
             return jsonify({'success': False, 'error': '只有管理员可以查看全局机器人状态'})
         
         # 检查实际状态
-        from app.discord.bot_client import check_bot_status
+        from app.discord.bot_client import check_bot_status as check_status
         
-        status, error = check_bot_status(bot.bot_token)
+        status, error = check_status(bot.bot_token)
         
-        # 更新数据库中的状态
-        if status != bot.status:
-            if status == 'online':
-                bot.update_status('online')
-            elif status == 'error':
-                bot.update_status('error', error)
-            else:
-                bot.update_status('offline')
-            db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'status': status,
-            'message': error if error else '机器人状态已更新'
-        })
+        if status == 'online':
+            # 更新数据库状态
+            bot.update_status('online')
+            return jsonify({
+                'success': True,
+                'status': 'online',
+                'message': '机器人已连接到Discord并正常运行'
+            })
+        elif status == 'error':
+            # 更新数据库状态
+            bot.update_status('error', error)
+            return jsonify({
+                'success': False, 
+                'status': 'error',
+                'message': f'机器人状态检查失败: {error}'
+            })
+        else:
+            # 更新数据库状态
+            bot.update_status('offline')
+            return jsonify({
+                'success': False, 
+                'status': 'offline',
+                'message': '机器人未连接到Discord'
+            })
     except Exception as e:
         return jsonify({
             'success': False, 
@@ -1400,7 +1414,7 @@ def get_discord_guilds_v1():
         print(f"令牌前5位: {token[:5]}...")
         
         # 从Discord API获取服务器列表
-        from app.discord.bot_client import get_bot_guilds
+        current_app.logger.info("调用get_bot_guilds获取服务器...")
         guilds = get_bot_guilds(token)
         
         print(f"获取到 {len(guilds)} 个服务器")
@@ -1444,7 +1458,7 @@ def get_discord_channels_v1():
         print(f"服务器ID: {guild_id}")
         
         # 从Discord API获取频道列表
-        from app.discord.bot_client import get_guild_channels
+        current_app.logger.info("调用get_guild_channels获取频道...")
         channels = get_guild_channels(token, guild_id)
         
         print(f"获取到 {len(channels)} 个频道")

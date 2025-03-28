@@ -83,6 +83,25 @@ def create_app():
             # 检查表是否存在，再进行迁移
             app.logger.info("检查数据库迁移：添加bot_name列到discord_bot表")
             
+            # 检查DiscordBot表中是否有activated_at列
+            try:
+                app.logger.info("检查DiscordBot表是否有activated_at列")
+                inspector = sa.inspect(db.engine)
+                columns = [c['name'] for c in inspector.get_columns('discord_bot')]
+                
+                if 'activated_at' not in columns:
+                    app.logger.info("添加activated_at列到discord_bot表")
+                    with db.engine.connect() as conn:
+                        conn.execute(text("ALTER TABLE discord_bot ADD COLUMN activated_at DATETIME"))
+                        conn.commit()
+                    app.logger.info("成功添加activated_at列")
+                else:
+                    app.logger.info("activated_at列已存在")
+            except Exception as e:
+                app.logger.error(f"检查activated_at列时出错: {e}")
+                import traceback
+                app.logger.error(traceback.format_exc())
+            
             # 检查字段是否已存在
             inspector = sa.inspect(db.engine)
             
