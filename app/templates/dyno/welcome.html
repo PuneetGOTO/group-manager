@@ -272,8 +272,9 @@
 
 <!-- 频道加载脚本 -->
 <script>
-    // 动态加载频道列表
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('欢迎消息页面加载完成，开始初始化频道加载...');
+        
         // 获取机器人令牌
         const botTokenField = document.getElementById('bot_token_hidden');
         
@@ -285,6 +286,16 @@
         const token = botTokenField.value;
         if (!token) {
             console.error('机器人令牌为空');
+            // 显示警告消息
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'alert alert-warning mt-3';
+            warningDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 无法加载Discord频道。请确保已激活Discord机器人并刷新页面。';
+            
+            // 插入到表单上方
+            const form = document.querySelector('form');
+            if (form && form.parentNode) {
+                form.parentNode.insertBefore(warningDiv, form);
+            }
             return;
         }
         
